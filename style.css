@@ -134,21 +134,20 @@ header.site-header {
 }
 
 .brand-logo {
-  background-color: var(--primary-dark);
-  color: #FFFFFF;
-  padding: 0.75rem 1.25rem;
+  color: var(--primary-dark);
+  padding: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border-radius: 2px;
-  box-shadow: 0 4px 12px rgba(37, 9, 12, 0.15);
+  text-decoration: none;
 }
 
 .brand-logo .logo-main {
   font-family: var(--font-serif);
-  font-size: 1.65rem;
+  font-size: 1.8rem;
   font-weight: 600;
+  color: var(--primary-dark);
   letter-spacing: 0.02em;
   line-height: 1.1;
 }
@@ -156,11 +155,11 @@ header.site-header {
 .brand-logo .logo-sub {
   font-family: var(--font-sans);
   font-size: 0.55rem;
-  font-weight: 600;
-  letter-spacing: 0.3em;
+  font-weight: 700;
+  color: var(--primary-dark);
+  letter-spacing: 0.35em;
   text-transform: uppercase;
   margin-top: 2px;
-  opacity: 0.85;
 }
 
 .nav-menu {
