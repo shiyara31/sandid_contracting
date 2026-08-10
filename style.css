@@ -38,7 +38,7 @@ body {
   background-color: var(--bg-cream);
   color: var(--text-dark);
   line-height: 1.6;
-  overflow-x: hidden;
+  overflow-x: clip;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -1091,7 +1091,7 @@ footer.site-footer {
 /* Telemetry HUD */
 .telemetry-hud {
   position: absolute;
-  top: 2rem;
+  top: 5.5rem;
   left: 2rem;
   z-index: 10;
   display: flex;

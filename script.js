@@ -71,8 +71,9 @@ function initScrollExperience() {
   updateScroll();
 
   function animate() {
+    updateScroll();
     // Lerp smooth scroll for silky 60fps movement
-    currentProgress += (targetProgress - currentProgress) * 0.12;
+    currentProgress += (targetProgress - currentProgress) * 0.15;
     const p = currentProgress;
 
     // Update HUD Progress Fill
