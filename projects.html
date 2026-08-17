@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Selected Projects | Sandid Contracting LLC & Sandid Interiors Dubai</title>
-  <meta name="description" content="Explore Sandid Contracting's selected interior fit-out and construction projects across Dubai: Tula Pilates Studio JBR, La Cantine Sports Club, Padel Café Bluewaters, and Tula Pilates Springs Souk.">
+  <meta name="description" content="Explore Sandid Contracting's selected interior fit-out and construction projects across Dubai: Tula Pilates Studio JBR, Hatta Campers, Padel Café Bluewaters, and Tula Pilates Springs Souk.">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -12,24 +12,46 @@
   <!-- Site Header & Navigation -->
   <header class="site-header">
     <div class="container header-inner">
-      <a href="about-us.html" class="brand-logo" id="header-logo">
-        <span class="logo-main">Sandid</span>
-        <span class="logo-sub">INTERIORS</span>
+      <a href="index.html" class="brand-logo" id="header-logo">
+        <img src="images/sandid-logo-burgundy.png" alt="Sandid Interiors" class="logo-img">
       </a>
 
-      <nav>
+      <nav class="desktop-nav">
         <ul class="nav-menu" id="main-nav">
-          <li><a href="about-us.html" class="nav-link">HOME</a></li>
+          <li><a href="index.html" class="nav-link">HOME</a></li>
           <li><a href="about-us.html" class="nav-link">ABOUT US</a></li>
           <li><a href="services.html" class="nav-link">SERVICES</a></li>
           <li><a href="projects.html" class="nav-link active">PROJECT</a></li>
-          <li><a href="#contact" class="nav-link">CONTACT</a></li>
+          <li><a href="contact.html" class="nav-link">CONTACT</a></li>
         </ul>
       </nav>
 
-      <a href="#contact" class="btn-cta" id="cta-get-in-touch">
+      <a href="contact.html" class="btn-cta header-cta-desktop" id="cta-get-in-touch">
         GET IN TOUCH &rarr;
       </a>
+
+      <!-- Mobile Hamburger Menu Button -->
+      <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle navigation menu" aria-expanded="false">
+        <span class="hamburger-bar"></span>
+        <span class="hamburger-bar"></span>
+        <span class="hamburger-bar"></span>
+      </button>
+    </div>
+
+    <!-- Mobile Navigation Drawer -->
+    <div class="mobile-nav-drawer" id="mobile-nav-drawer" aria-hidden="true">
+      <div class="mobile-nav-inner">
+        <ul class="mobile-nav-menu">
+          <li><a href="index.html" class="mobile-nav-link"><span>HOME</span><span class="nav-arrow">&rarr;</span></a></li>
+          <li><a href="about-us.html" class="mobile-nav-link"><span>ABOUT US</span><span class="nav-arrow">&rarr;</span></a></li>
+          <li><a href="services.html" class="mobile-nav-link"><span>SERVICES</span><span class="nav-arrow">&rarr;</span></a></li>
+          <li><a href="projects.html" class="mobile-nav-link active"><span>PROJECT</span><span class="nav-arrow">&rarr;</span></a></li>
+          <li><a href="contact.html" class="mobile-nav-link"><span>CONTACT</span><span class="nav-arrow">&rarr;</span></a></li>
+        </ul>
+        <div class="mobile-nav-footer">
+          <a href="contact.html" class="btn-cta mobile-nav-cta">GET IN TOUCH &rarr;</a>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -93,7 +115,7 @@
       <div class="projects-grid">
         
         <!-- Project 1: Tula Pilates Studio JBR (Full Width) -->
-        <article class="project-card full-width" data-category="interiors commercial">
+        <article class="project-card full-width" data-category="interiors commercial" id="tula-jbr-card">
           <div class="project-image-wrapper">
             <img src="images/project-tula-pilates.jpg" alt="Tula Pilates Studio JBR Dubai - Sandid Contracting">
           </div>
@@ -110,15 +132,15 @@
 
         <!-- Two-Column Row -->
         <div class="projects-row-two-col">
-          <!-- Project 2: La Cantine Sports Club (Half Width) -->
+          <!-- Project 2: Hatta Campers (Half Width) -->
           <article class="project-card half-width" data-category="outdoor commercial">
             <div class="project-image-wrapper">
-              <img src="images/project-lacantine-sports.jpg" alt="La Cantine Sports Club Dubai - Sandid Contracting">
+              <img src="images/project-lacantine-sports.jpg" alt="Hatta Campers Dubai - Sandid Contracting">
             </div>
             <div class="project-info-bar">
               <div class="project-details">
-                <h2 class="project-title">LA CANTINE SPORTS CLUB</h2>
-                <span class="project-location">DUBAI</span>
+                <h2 class="project-title">HATTA CAMPERS</h2>
+                <span class="project-location">HATTA, DUBAI</span>
               </div>
               <div class="project-arrow">
                 &rarr;
@@ -127,7 +149,7 @@
           </article>
 
           <!-- Project 3: Padel Café (Half Width) -->
-          <article class="project-card half-width" data-category="commercial outdoor">
+          <article class="project-card half-width" data-category="commercial outdoor" id="padel-cafe-card">
             <div class="project-image-wrapper">
               <img src="images/project-padel-cafe.jpg" alt="Padel Café Bluewaters Island Dubai - Sandid Contracting">
             </div>
@@ -144,14 +166,14 @@
         </div>
 
         <!-- Project 4: Tula Pilates Studio Springs (Full Width) -->
-        <article class="project-card full-width" data-category="interiors special">
+        <article class="project-card full-width" data-category="interiors special" id="tula-springs-card">
           <div class="project-image-wrapper">
             <img src="images/project-tula-springs.jpg" alt="Tula Pilates Studio Springs Souk Dubai - Sandid Contracting">
           </div>
           <div class="project-info-bar">
             <div class="project-details">
               <h2 class="project-title">TULA PILATES STUDIO</h2>
-              <span class="project-location">SPRINGS SOUK EXTENSION, DUBAI</span>
+              <span class="project-location">SPRINGS SOUK, DUBAI</span>
             </div>
             <div class="project-arrow">
               &rarr;
@@ -170,6 +192,128 @@
 
     </div>
   </section>
+
+  <!-- Padel Café Full-Page Album -->
+  <div class="album-overlay" id="album-overlay">
+    <div class="album-header">
+      <div class="album-header-left">
+        <button class="album-back-btn" id="album-back" aria-label="Close album">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <div>
+          <h2 class="album-title">PADEL CAFÉ</h2>
+          <span class="album-subtitle">BLUEWATERS ISLAND &bull; 14 Photos</span>
+        </div>
+      </div>
+      <button class="album-close-btn" id="album-close" aria-label="Close album">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+    <div class="album-grid" id="album-grid">
+      <div class="album-photo" data-index="0"><img src="images/padelcafe/padel cafe1.jpeg" alt="Padel Café 1" loading="lazy"></div>
+      <div class="album-photo" data-index="1"><img src="images/padelcafe/padelcafe2.jpeg" alt="Padel Café 2" loading="lazy"></div>
+      <div class="album-photo" data-index="2"><img src="images/padelcafe/padelcafe3.jpeg" alt="Padel Café 3" loading="lazy"></div>
+      <div class="album-photo" data-index="3"><img src="images/padelcafe/padelcafe4.jpeg" alt="Padel Café 4" loading="lazy"></div>
+      <div class="album-photo" data-index="4"><img src="images/padelcafe/padelcafe5.jpeg" alt="Padel Café 5" loading="lazy"></div>
+      <div class="album-photo" data-index="5"><img src="images/padelcafe/padelcafe6.jpeg" alt="Padel Café 6" loading="lazy"></div>
+      <div class="album-photo" data-index="6"><img src="images/padelcafe/padelcafe7.jpeg" alt="Padel Café 7" loading="lazy"></div>
+      <div class="album-photo" data-index="7"><img src="images/padelcafe/padel8.jpeg" alt="Padel Café 8" loading="lazy"></div>
+      <div class="album-photo" data-index="8"><img src="images/padelcafe/padel9.jpeg" alt="Padel Café 9" loading="lazy"></div>
+      <div class="album-photo" data-index="9"><img src="images/padelcafe/padel10.jpeg" alt="Padel Café 10" loading="lazy"></div>
+      <div class="album-photo" data-index="10"><img src="images/padelcafe/padel11.jpeg" alt="Padel Café 11" loading="lazy"></div>
+      <div class="album-photo" data-index="11"><img src="images/padelcafe/padel12.jpeg" alt="Padel Café 12" loading="lazy"></div>
+      <div class="album-photo" data-index="12"><img src="images/padelcafe/padel13.jpeg" alt="Padel Café 13" loading="lazy"></div>
+      <div class="album-photo" data-index="13"><img src="images/padelcafe/padel14.jpeg" alt="Padel Café 14" loading="lazy"></div>
+    </div>
+  </div>
+
+  <!-- Tula Pilates Springs Souk Full-Page Album -->
+  <div class="album-overlay" id="tula-album-overlay">
+    <div class="album-header">
+      <div class="album-header-left">
+        <button class="album-back-btn" id="tula-album-back" aria-label="Close album">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <div>
+          <h2 class="album-title">TULA PILATES STUDIO</h2>
+          <span class="album-subtitle">SPRINGS SOUK, DUBAI &bull; 15 Photos</span>
+        </div>
+      </div>
+      <button class="album-close-btn" id="tula-album-close" aria-label="Close album">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+    <div class="album-grid" id="tula-album-grid">
+      <div class="album-photo" data-index="0"><img src="images/tula/tula1.jpeg" alt="Tula Pilates 1" loading="lazy"></div>
+      <div class="album-photo" data-index="1"><img src="images/tula/tula2.jpeg" alt="Tula Pilates 2" loading="lazy"></div>
+      <div class="album-photo" data-index="2"><img src="images/tula/tula3.jpeg" alt="Tula Pilates 3" loading="lazy"></div>
+      <div class="album-photo" data-index="3"><img src="images/tula/tula5.jpeg" alt="Tula Pilates 4" loading="lazy"></div>
+      <div class="album-photo" data-index="4"><img src="images/tula/tula6.jpeg" alt="Tula Pilates 5" loading="lazy"></div>
+      <div class="album-photo" data-index="5"><img src="images/tula/tula7.jpeg" alt="Tula Pilates 6" loading="lazy"></div>
+      <div class="album-photo" data-index="6"><img src="images/tula/tula8.jpeg" alt="Tula Pilates 7" loading="lazy"></div>
+      <div class="album-photo" data-index="7"><img src="images/tula/tula9.jpeg" alt="Tula Pilates 8" loading="lazy"></div>
+      <div class="album-photo" data-index="8"><img src="images/tula/tula10.jpeg" alt="Tula Pilates 9" loading="lazy"></div>
+      <div class="album-photo" data-index="9"><img src="images/tula/tula11.jpeg" alt="Tula Pilates 10" loading="lazy"></div>
+      <div class="album-photo" data-index="10"><img src="images/tula/tula12.jpeg" alt="Tula Pilates 11" loading="lazy"></div>
+      <div class="album-photo" data-index="11"><img src="images/tula/tula13.jpeg" alt="Tula Pilates 12" loading="lazy"></div>
+      <div class="album-photo" data-index="12"><img src="images/tula/tula14.jpeg" alt="Tula Pilates 13" loading="lazy"></div>
+      <div class="album-photo" data-index="13"><img src="images/tula/tula16.jpeg" alt="Tula Pilates 14" loading="lazy"></div>
+      <div class="album-photo" data-index="14"><img src="images/tula/tula17.jpeg" alt="Tula Pilates 15" loading="lazy"></div>
+    </div>
+  </div>
+
+  <!-- Tula Pilates JBR Full-Page Album -->
+  <div class="album-overlay" id="tula-jbr-album-overlay">
+    <div class="album-header">
+      <div class="album-header-left">
+        <button class="album-back-btn" id="tula-jbr-album-back" aria-label="Close album">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <div>
+          <h2 class="album-title">TULA PILATES STUDIO</h2>
+          <span class="album-subtitle">JBR, DUBAI &bull; 5 Photos</span>
+        </div>
+      </div>
+      <button class="album-close-btn" id="tula-jbr-album-close" aria-label="Close album">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+    <div class="album-grid" id="tula-jbr-album-grid">
+      <div class="album-photo" data-index="0"><img src="images/tula jbr/jbr1.jpeg" alt="Tula Pilates JBR 1" loading="lazy"></div>
+      <div class="album-photo" data-index="1"><img src="images/tula jbr/jbr2.jpeg" alt="Tula Pilates JBR 2" loading="lazy"></div>
+      <div class="album-photo" data-index="2"><img src="images/tula jbr/jbr3.jpeg" alt="Tula Pilates JBR 3" loading="lazy"></div>
+      <div class="album-photo" data-index="3"><img src="images/tula jbr/jbr4.jpeg" alt="Tula Pilates JBR 4" loading="lazy"></div>
+      <div class="album-photo" data-index="4"><img src="images/tula jbr/jbr5.jpeg" alt="Tula Pilates JBR 5" loading="lazy"></div>
+    </div>
+  </div>
+
+  <!-- Fullscreen Photo Viewer (opens when clicking a photo in the album) -->
+  <div class="photo-viewer" id="photo-viewer">
+    <div class="photo-viewer-backdrop" id="photo-viewer-backdrop"></div>
+    <button class="photo-viewer-close" id="photo-viewer-close" aria-label="Close photo">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+    <button class="photo-viewer-nav photo-viewer-prev" id="photo-viewer-prev" aria-label="Previous photo">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+    </button>
+    <button class="photo-viewer-nav photo-viewer-next" id="photo-viewer-next" aria-label="Next photo">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 6 15 12 9 18"></polyline></svg>
+    </button>
+    <img class="photo-viewer-img" id="photo-viewer-img" src="" alt="Padel Café Photo">
+    <div class="photo-viewer-counter" id="photo-viewer-counter"></div>
+  </div>
 
   <!-- Pre-Footer Consultation Banner -->
   <section class="pre-footer-banner" id="contact">
@@ -190,99 +334,79 @@
           </a>
         </div>
 
-        <div class="pre-footer-decor">
-          <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#E29B93" stroke-width="1" opacity="0.6">
-            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-          </svg>
-        </div>
-
       </div>
     </div>
   </section>
 
-  <!-- Site Footer -->
-  <footer class="site-footer">
-    <div class="container">
-      
-      <div class="footer-top-grid">
-        
-        <div class="footer-col">
-          <div class="footer-col-label">WHY CHOOSE US</div>
-          <h3 class="footer-col-title-main">Commitment to<br><em>Excellence</em> in Every Project.</h3>
-          <p>
-            Our success is built on experienced professionals, strong project management, and a dedication to delivering projects safely, efficiently, and on schedule.
-          </p>
+  <!-- ===== FOOTER ===== -->
+  <footer class="ct-footer">
+    <div class="ct-footer-bg-art" aria-hidden="true"></div>
+    <div class="container ct-footer-inner">
+
+      <div class="ct-footer-grid">
+
+        <!-- Col 1: Brand -->
+        <div class="ct-footer-brand">
+          <a href="index.html" class="brand-logo ct-footer-logo">
+            <img src="images/sandid-logo-white.png" alt="Sandid Interiors" class="logo-img">
+          </a>
+          <p class="ct-footer-tagline">Building excellence. Delivering results.<br>Trusted partners for quality construction<br>and interior solutions across Dubai.</p>
         </div>
 
-        <div class="footer-col">
-          <div class="footer-icon-box">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-              <path d="M2 22h20M6 22V7l12-4M10 7h8M14 7v10M18 7v15"></path>
-              <polyline points="2 7 6 7"></polyline>
-            </svg>
-          </div>
-          <div class="footer-col-title">GENERAL CONTRACTING</div>
-          <p>
-            Comprehensive construction services including residential, commercial, infrastructure development, drainage works, pavements, heavy structural works, and electrical installations.
-          </p>
+        <!-- Col 2: Quick Links -->
+        <div class="ct-footer-col">
+          <h4 class="ct-footer-heading">Quick Links</h4>
+          <ul class="ct-footer-links">
+            <li><a href="index.html">Home</a></li>
+            <li><a href="about-us.html">About Us</a></li>
+            <li><a href="services.html">Services</a></li>
+            <li><a href="projects.html">Project</a></li>
+            <li><a href="contact.html">Contact</a></li>
+          </ul>
         </div>
 
-        <div class="footer-col">
-          <div class="footer-icon-box">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-              <path d="M19 9V6a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v3"></path>
-              <path d="M3 11v5a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2z"></path>
-              <path d="M5 18v3M19 18v3"></path>
-            </svg>
+        <!-- Col 3: Contact -->
+        <div class="ct-footer-col">
+          <h4 class="ct-footer-heading">Contact</h4>
+          <div class="ct-footer-contact-row">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span>GF25, Fahad Building<br>Hor Al Anz, Dubai, UAE</span>
           </div>
-          <div class="footer-col-title">INTERIOR FIT-OUT SOLUTIONS</div>
-          <p>
-            Full-service fit-out works from design to completion. We create functional and aesthetically refined commercial, retail, hospitality, and residential environments.
-          </p>
+          <div class="ct-footer-contact-row">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            <span>+971 54 406 8448</span>
+          </div>
+          <div class="ct-footer-contact-row">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            <span>info@sandid.net</span>
+          </div>
         </div>
 
-        <div class="footer-col">
-          <div class="footer-icon-box">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-              <rect x="8" y="2" width="8" height="4" rx="1"></rect>
-              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
-              <path d="M12 11a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"></path>
-            </svg>
+        <!-- Col 4: Follow Us -->
+        <div class="ct-footer-col">
+          <h4 class="ct-footer-heading">Follow Us</h4>
+          <div class="ct-social-row">
+            <a href="#" class="ct-social-btn" aria-label="Instagram">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+            </a>
+            <a href="#" class="ct-social-btn" aria-label="LinkedIn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"></circle></svg>
+            </a>
+            <a href="#" class="ct-social-btn" aria-label="Facebook">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+            </a>
           </div>
-          <div class="footer-col-title">PROJECT MANAGEMENT</div>
-          <p>
-            Dedicated project management ensures seamless coordination, construction scheduling, site supervision, and clear communication throughout every phase of the project.
-          </p>
-        </div>
-
-        <div class="footer-col">
-          <div class="footer-icon-box">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-              <path d="M14 9a2 2 0 0 0-2-2H9v6h3a2 2 0 0 0 2-2z"></path>
-            </svg>
-          </div>
-          <div class="footer-col-title">QUALITY & CLIENT SATISFACTION</div>
-          <p>
-            We believe quality workmanship, attention to detail, and client-focused service are the foundations of every successful project and long-term partnership.
-          </p>
         </div>
 
       </div>
 
-      <div class="footer-bottom">
-        <div>&copy; 2025 Sandid Contracting. All rights reserved.</div>
-        
-        <div class="social-links">
-          <a href="#" class="social-link-icon" aria-label="Instagram">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
-          </a>
-          <a href="#" class="social-link-icon" aria-label="LinkedIn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg>
-          </a>
-          <a href="#" class="social-link-icon" aria-label="Facebook">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
-          </a>
+      <!-- Bottom Bar -->
+      <div class="ct-footer-bottom">
+        <p>&copy; 2025 Sandid Contracting. All rights reserved.</p>
+        <div class="ct-footer-legal">
+          <a href="#">Privacy</a>
+          <a href="#">Terms</a>
+          <a href="#">Sitemap</a>
         </div>
       </div>
 
