@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Selected Projects | Sandid Contracting LLC & Sandid Interiors Dubai</title>
-  <meta name="description" content="Explore Sandid Contracting's selected interior fit-out and construction projects across Dubai: Tula Pilates Studio JBR, Hatta Campers, Padel Café Bluewaters, Tula Pilates Springs Souk, and Tula Pilates Studio Motor City.">
+  <meta name="description" content="Explore Sandid Contracting's selected interior fit-out and construction projects across Dubai: Tula Pilates Studio JBR, Hatta Campers, Padel Café Bluewaters, and Tula Pilates Springs Souk.">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -114,8 +114,8 @@
     <div class="container">
       <div class="projects-grid">
         
-        <!-- Project 1: Tula Pilates Studio JBR -->
-        <article class="project-card" data-category="interiors commercial" id="tula-jbr-card">
+        <!-- Project 1: Tula Pilates Studio JBR (Full Width) -->
+        <article class="project-card full-width" data-category="interiors commercial" id="tula-jbr-card">
           <div class="project-image-wrapper">
             <img src="images/project-tula-pilates.jpg" alt="Tula Pilates Studio JBR Dubai - Sandid Contracting">
           </div>
@@ -130,40 +130,43 @@
           </div>
         </article>
 
-        <!-- Project 2: Hatta Campers -->
-        <article class="project-card" data-category="outdoor commercial" id="hatta-card">
-          <div class="project-image-wrapper">
-            <img src="images/hatta/hatta1.jpeg" alt="Hatta Campers Dubai - Sandid Contracting">
-          </div>
-          <div class="project-info-bar">
-            <div class="project-details">
-              <h2 class="project-title">HATTA CAMPERS</h2>
-              <span class="project-location">HATTA, DUBAI</span>
+        <!-- Two-Column Row -->
+        <div class="projects-row-two-col">
+          <!-- Project 2: Hatta Campers (Half Width) -->
+          <article class="project-card half-width" data-category="outdoor commercial" id="hatta-card">
+            <div class="project-image-wrapper">
+              <img src="images/hatta/hatta1.jpeg" alt="Hatta Campers Dubai - Sandid Contracting">
             </div>
-            <div class="project-arrow">
-              &rarr;
+            <div class="project-info-bar">
+              <div class="project-details">
+                <h2 class="project-title">HATTA CAMPERS</h2>
+                <span class="project-location">HATTA, DUBAI</span>
+              </div>
+              <div class="project-arrow">
+                &rarr;
+              </div>
             </div>
-          </div>
-        </article>
+          </article>
 
-        <!-- Project 3: Padel Café -->
-        <article class="project-card" data-category="commercial outdoor" id="padel-cafe-card">
-          <div class="project-image-wrapper">
-            <img src="images/project-padel-cafe.jpg" alt="Padel Café Bluewaters Island Dubai - Sandid Contracting">
-          </div>
-          <div class="project-info-bar">
-            <div class="project-details">
-              <h2 class="project-title">PADEL CAFÉ</h2>
-              <span class="project-location">BLUEWATERS ISLAND</span>
+          <!-- Project 3: Padel Café (Half Width) -->
+          <article class="project-card half-width" data-category="commercial outdoor" id="padel-cafe-card">
+            <div class="project-image-wrapper">
+              <img src="images/project-padel-cafe.jpg" alt="Padel Café Bluewaters Island Dubai - Sandid Contracting">
             </div>
-            <div class="project-arrow">
-              &rarr;
+            <div class="project-info-bar">
+              <div class="project-details">
+                <h2 class="project-title">PADEL CAFÉ</h2>
+                <span class="project-location">BLUEWATERS ISLAND</span>
+              </div>
+              <div class="project-arrow">
+                &rarr;
+              </div>
             </div>
-          </div>
-        </article>
+          </article>
+        </div>
 
-        <!-- Project 4: Tula Pilates Studio Springs -->
-        <article class="project-card" data-category="interiors special" id="tula-springs-card">
+        <!-- Project 4: Tula Pilates Studio Springs (Full Width) -->
+        <article class="project-card full-width" data-category="interiors special" id="tula-springs-card">
           <div class="project-image-wrapper">
             <img src="images/project-tula-springs.jpg" alt="Tula Pilates Studio Springs Souk Dubai - Sandid Contracting">
           </div>
@@ -178,22 +181,13 @@
           </div>
         </article>
 
-        <!-- Project 5: Tula Pilates Studio Motor City -->
-        <article class="project-card" data-category="interiors commercial" id="tula-motor-card">
-          <div class="project-image-wrapper">
-            <img src="images/tula motor/motor1.jpeg" alt="Tula Pilates Studio Motor City Dubai - Sandid Contracting">
-          </div>
-          <div class="project-info-bar">
-            <div class="project-details">
-              <h2 class="project-title">TULA PILATES STUDIO</h2>
-              <span class="project-location">MOTOR CITY, DUBAI</span>
-            </div>
-            <div class="project-arrow">
-              &rarr;
-            </div>
-          </div>
-        </article>
+      </div>
 
+      <!-- View All Projects Button -->
+      <div class="projects-action-footer">
+        <a href="#projects-grid" class="btn-view-all">
+          VIEW ALL PROJECTS &rarr;
+        </a>
       </div>
 
     </div>
@@ -331,41 +325,6 @@
       <div class="album-photo" data-index="6"><img src="images/hatta/hatta7.jpeg" alt="Hatta Campers 7" loading="lazy"></div>
       <div class="album-photo" data-index="7"><img src="images/hatta/hatta8.jpeg" alt="Hatta Campers 8" loading="lazy"></div>
       <div class="album-photo" data-index="8"><img src="images/hatta/hatta9.jpeg" alt="Hatta Campers 9" loading="lazy"></div>
-    </div>
-  </div>
-
-  <!-- Tula Pilates Motor City Full-Page Album -->
-  <div class="album-overlay" id="tula-motor-album-overlay">
-    <div class="album-header">
-      <div class="album-header-left">
-        <button class="album-back-btn" id="tula-motor-album-back" aria-label="Close album">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
-        </button>
-        <div>
-          <h2 class="album-title">TULA PILATES STUDIO</h2>
-          <span class="album-subtitle">MOTOR CITY, DUBAI &bull; 12 Photos</span>
-        </div>
-      </div>
-      <button class="album-close-btn" id="tula-motor-album-close" aria-label="Close album">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
-      </button>
-    </div>
-    <div class="album-grid" id="tula-motor-album-grid">
-      <div class="album-photo" data-index="0"><img src="images/tula motor/motor1.jpeg" alt="Tula Pilates Motor City 1" loading="lazy"></div>
-      <div class="album-photo" data-index="1"><img src="images/tula motor/motor2.jpeg" alt="Tula Pilates Motor City 2" loading="lazy"></div>
-      <div class="album-photo" data-index="2"><img src="images/tula motor/motor3.jpeg" alt="Tula Pilates Motor City 3" loading="lazy"></div>
-      <div class="album-photo" data-index="3"><img src="images/tula motor/motor4.jpeg" alt="Tula Pilates Motor City 4" loading="lazy"></div>
-      <div class="album-photo" data-index="4"><img src="images/tula motor/motor5.jpeg" alt="Tula Pilates Motor City 5" loading="lazy"></div>
-      <div class="album-photo" data-index="5"><img src="images/tula motor/motor6.jpeg" alt="Tula Pilates Motor City 6" loading="lazy"></div>
-      <div class="album-photo" data-index="6"><img src="images/tula motor/motor7.jpeg" alt="Tula Pilates Motor City 7" loading="lazy"></div>
-      <div class="album-photo" data-index="7"><img src="images/tula motor/motor8.jpeg" alt="Tula Pilates Motor City 8" loading="lazy"></div>
-      <div class="album-photo" data-index="8"><img src="images/tula motor/motor9.jpeg" alt="Tula Pilates Motor City 9" loading="lazy"></div>
-      <div class="album-photo" data-index="9"><img src="images/tula motor/motor10.jpeg" alt="Tula Pilates Motor City 10" loading="lazy"></div>
-      <div class="album-photo" data-index="10"><img src="images/tula motor/motor11.jpeg" alt="Tula Pilates Motor City 11" loading="lazy"></div>
-      <div class="album-photo" data-index="11"><img src="images/tula motor/motor12.jpeg" alt="Tula Pilates Motor City 12" loading="lazy"></div>
     </div>
   </div>
 
