@@ -385,6 +385,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Setup all albums
   const albums = [
+    setupAlbum('hatta-card', 'hatta-album-overlay', 'hatta-album-close', 'hatta-album-back'),
     setupAlbum('padel-cafe-card', 'album-overlay', 'album-close', 'album-back'),
     setupAlbum('tula-springs-card', 'tula-album-overlay', 'tula-album-close', 'tula-album-back'),
     setupAlbum('tula-jbr-card', 'tula-jbr-album-overlay', 'tula-jbr-album-close', 'tula-jbr-album-back')
