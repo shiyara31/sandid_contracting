@@ -388,7 +388,8 @@ document.addEventListener('DOMContentLoaded', () => {
     setupAlbum('hatta-card', 'hatta-album-overlay', 'hatta-album-close', 'hatta-album-back'),
     setupAlbum('padel-cafe-card', 'album-overlay', 'album-close', 'album-back'),
     setupAlbum('tula-springs-card', 'tula-album-overlay', 'tula-album-close', 'tula-album-back'),
-    setupAlbum('tula-jbr-card', 'tula-jbr-album-overlay', 'tula-jbr-album-close', 'tula-jbr-album-back')
+    setupAlbum('tula-jbr-card', 'tula-jbr-album-overlay', 'tula-jbr-album-close', 'tula-jbr-album-back'),
+    setupAlbum('tula-motor-card', 'tula-motor-album-overlay', 'tula-motor-album-close', 'tula-motor-album-back')
   ].filter(Boolean);
 
   // Mobile Navigation Drawer Toggle Handler

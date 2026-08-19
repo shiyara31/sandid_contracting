@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 220" width="540" height="220" fill="none">
+  <!-- N Letter in Gold -->
+  <path d="M40 50 H95 V102 L148 50 H195 V170 H150 V118 L95 170 H40 Z" fill="#DEAC4C"/>
+  
+  <!-- Piston Detail in N's right column -->
+  <rect x="156" y="52" width="32" height="11" rx="2" fill="#DEAC4C"/>
+  <rect x="156" y="68" width="32" height="6" rx="1" fill="#DEAC4C"/>
+  <rect x="168" y="77" width="8" height="52" fill="#585B62"/>
+  <circle cx="172" cy="148" r="16" fill="none" stroke="#585B62" stroke-width="7"/>
+  <circle cx="172" cy="85" r="3" fill="#222"/>
+
+  <!-- A Letter in Black -->
+  <path d="M260 50 L205 170 H252 L262 144 H300 L310 170 H357 L302 50 H260 Z" fill="#111111"/>
+  
+  <!-- White Star in A -->
+  <polygon points="281,72 287,90 306,90 291,101 297,118 281,108 266,118 271,101 257,90 275,90" fill="#FFFFFF"/>
+  
+  <!-- Crane Block & Hook hanging below A -->
+  <path d="M272 148 H290 L287 165 H275 Z" fill="#DEAC4C"/>
+  <circle cx="281" cy="156" r="2.5" fill="#585B62"/>
+  <path d="M281 165 V175 C281 184, 271 184, 271 190 C271 196, 287 199, 290 190 C291 186, 289 182, 287 180" fill="none" stroke="#DEAC4C" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- S Letter in Gold -->
+  <path d="M375 142 C375 162 391 174 416 174 C440 174 456 162 456 144 C456 130 445 122 422 116 L410 113 C395 109 388 103 388 93 C388 80 400 70 417 70 C434 70 447 80 449 94 H490 C487 70 460 50 417 50 C379 50 348 70 348 97 C348 116 360 128 382 134 L398 138 C416 142 424 148 424 156 C424 164 414 170 399 170 C382 170 371 160 369 146 H375 Z" fill="#DEAC4C" transform="translate(10, 0)"/>
+</svg>

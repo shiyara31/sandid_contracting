@@ -795,91 +795,153 @@ header.site-header {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.75rem 1.25rem;
-  min-height: 54px;
+  padding: 0.75rem 1.5rem;
+  height: 72px;
+  min-width: 150px;
   background: #FFFFFF;
   border: 1px solid rgba(59, 19, 25, 0.08);
-  border-radius: 6px;
+  border-radius: 8px;
   transition: var(--transition);
+  box-shadow: 0 2px 10px rgba(59, 19, 25, 0.02);
 }
 
 .client-logo-item:hover {
-  transform: translateY(-2px);
-  border-color: rgba(59, 19, 25, 0.2);
-  box-shadow: 0 8px 16px rgba(0,0,0,0.04);
+  transform: translateY(-3px);
+  border-color: rgba(184, 134, 11, 0.35);
+  box-shadow: 0 10px 22px rgba(59, 19, 25, 0.07);
 }
 
-.logo-badge-delano {
-  background-color: #D9CFC4;
-  padding: 0.4rem 1.1rem;
-  border-radius: 4px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
+.client-logo-img {
+  max-height: 52px;
+  max-width: 150px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  display: block;
 }
 
-.logo-banyan {
-  color: #1F382B;
+/* --- GROUP COMPANIES SECTION --- */
+.group-companies-section {
+  padding: 5.5rem 0;
+  background-color: #FAF5EE;
+  border-top: 1px solid rgba(59, 19, 25, 0.08);
+  border-bottom: 1px solid rgba(59, 19, 25, 0.08);
+  position: relative;
+}
+
+.group-companies-header {
+  text-align: center;
+  max-width: 680px;
+  margin: 0 auto 3.5rem;
+}
+
+.group-companies-header h2 {
+  font-family: var(--font-serif);
+  font-size: clamp(2rem, 4.5vw, 2.75rem);
+  font-weight: 500;
+  color: var(--primary-dark);
+  margin-top: 0.5rem;
+  line-height: 1.2;
+}
+
+.group-companies-header h2 em {
+  font-style: italic;
+  color: var(--primary-accent);
+}
+
+.group-companies-header p {
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  line-height: 1.65;
+  margin-top: 0.75rem;
+}
+
+.group-companies-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+}
+
+.group-company-card {
+  background: #FFFFFF;
+  border: 1px solid rgba(59, 19, 25, 0.08);
+  border-radius: 14px;
+  padding: 2.25rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  transition: var(--transition);
+  text-decoration: none;
+  box-shadow: 0 4px 18px rgba(59, 19, 25, 0.03);
+}
+
+.group-company-card-link {
+  cursor: pointer;
+}
+
+.group-company-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(184, 134, 11, 0.45);
+  box-shadow: 0 16px 32px rgba(59, 19, 25, 0.09);
+}
+
+.group-company-logo-wrap {
+  height: 85px;
+  width: 100%;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.75rem;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(59, 19, 25, 0.06);
+}
+
+.group-company-logo-wrap img,
+.group-company-logo-wrap svg {
+  max-height: 60px;
+  max-width: 85%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  filter: contrast(1.05);
+}
+
+.group-company-name {
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--primary-dark);
+  line-height: 1.3;
+  margin-bottom: 0.35rem;
+}
+
+.group-company-link-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  font-weight: 700;
-  line-height: 1.1;
-  text-align: left;
+  color: var(--primary-accent);
+  margin-top: 0.5rem;
+  transition: var(--transition);
 }
 
-.logo-tula {
-  font-family: var(--font-serif);
-  font-size: 1.2rem;
-  letter-spacing: 0.15em;
-  font-weight: 700;
-  color: #38251C;
+.group-company-card:hover .group-company-link-text {
+  color: var(--primary-dark);
+  transform: translateX(4px);
 }
 
-.logo-damac {
-  font-weight: 900;
-  font-size: 1rem;
+.group-company-location {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 600;
   letter-spacing: 0.08em;
-  color: #1A1A1A;
-}
-
-.logo-dubai-holding {
-  font-weight: 800;
-  font-size: 0.85rem;
-  letter-spacing: 0.1em;
-  color: #202020;
-}
-
-.logo-lagoons {
-  background-color: #2B5797;
-  color: #FFFFFF;
-  padding: 0.4rem 0.8rem;
-  font-size: 0.75rem;
-  letter-spacing: 0.12em;
-  font-weight: 700;
-}
-
-.logo-villanova {
-  color: #8C2230;
-  font-size: 0.8rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-}
-
-.logo-hatta {
-  font-family: var(--font-serif);
-  color: #A36B41;
-  font-size: 1.05rem;
-  letter-spacing: 0.1em;
-}
-
-.logo-kaizen {
-  color: #223344;
-  font-size: 0.85rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  margin-top: 0.5rem;
 }
 
 /* --- SERVICES PAGE SPECIFIC STYLES --- */
@@ -985,10 +1047,6 @@ header.site-header {
 
 .service-block.even .service-image-wrapper img {
   border-radius: 0 0 110px 0;
-}
-
-.service-block:hover .service-image-wrapper img {
-  transform: scale(1.03);
 }
 
 /* PRE-FOOTER CONSULTATION BANNER */
@@ -1443,14 +1501,8 @@ footer.site-footer {
 }
 
 .projects-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 2.5rem;
-}
-
-.projects-row-two-col {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, 1fr);
   gap: 2.5rem;
 }
 
@@ -1461,6 +1513,8 @@ footer.site-footer {
   border: 1px solid rgba(59, 19, 25, 0.06);
   transition: var(--transition);
   cursor: pointer;
+  display: flex;
+  flex-direction: column;
 }
 
 .project-card:hover {
@@ -1471,27 +1525,20 @@ footer.site-footer {
 .project-image-wrapper {
   position: relative;
   width: 100%;
+  aspect-ratio: 1 / 1;
   overflow: hidden;
-}
-
-.project-card.full-width .project-image-wrapper {
-  height: 380px;
-}
-
-.project-card.half-width .project-image-wrapper {
-  height: 310px;
 }
 
 .project-image-wrapper img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center bottom;
+  object-position: center;
   transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .project-card:hover .project-image-wrapper img {
-  transform: scale(1.03);
+  transform: scale(1.04);
 }
 
 .project-info-bar {
@@ -3075,12 +3122,32 @@ footer.site-footer {
     grid-template-columns: 1fr;
     gap: 2rem;
   }
+
+  .who-we-are-grid {
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+  }
+
+  .arch-image-wrapper {
+    max-width: 360px;
+    margin: 0 auto;
+  }
+
+  .group-companies-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.75rem;
+  }
 }
 
 @media (max-width: 768px) {
   /* Container & Global Spacing */
   .container {
     padding: 0 1.25rem;
+  }
+
+  /* Prevent floral background elements from causing horizontal overflow on mobile */
+  .floral-bg {
+    display: none;
   }
 
   /* Header & Mobile Navigation */
@@ -3131,42 +3198,103 @@ footer.site-footer {
     font-size: 0.95rem;
   }
 
-  /* Who We Are & Cards Stack */
+  /* Who We Are & Cards Stack on Mobile */
   .who-we-are-section {
     padding: 3rem 0;
   }
 
-  .who-we-are-content h2 {
-    font-size: clamp(1.85rem, 6vw, 2.4rem);
+  .who-we-are-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 2.25rem;
   }
 
-  .apart-card {
-    padding: 1.75rem 1.25rem;
+  .who-center-content {
+    order: 1;
   }
 
   .arch-image-wrapper {
-    margin-top: 1.5rem;
+    order: 2;
+    max-width: 300px;
+    width: 100%;
+    margin: 0 auto;
   }
 
   .arch-image-wrapper img {
-    height: 300px;
+    height: 320px;
     border-radius: 120px 120px 16px 16px;
   }
 
-  /* Metrics Section */
+  .cards-stack {
+    order: 3;
+    width: 100%;
+    gap: 1.25rem;
+  }
+
+  .who-center-content h2 {
+    font-size: clamp(1.85rem, 6vw, 2.4rem);
+  }
+
+  .mv-card {
+    padding: 1.75rem 1.35rem;
+  }
+
+  /* Metrics Section on Mobile */
   .metrics-section {
     padding: 2.5rem 0;
   }
 
   .metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.85rem;
+  }
+
+  .metric-item {
+    padding: 1.25rem 0.85rem;
+    background: rgba(244, 236, 225, 0.7);
+    border-radius: 12px;
+    text-align: center;
+  }
+
+  .metric-value {
+    font-size: 1.85rem;
+  }
+
+  .metric-label {
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+  }
+
+  /* Group Companies Section Mobile */
+  .group-companies-section {
+    padding: 3.5rem 0;
+  }
+
+  .group-companies-header {
+    margin-bottom: 2rem;
+  }
+
+  .group-companies-header h2 {
+    font-size: clamp(1.75rem, 5.5vw, 2.2rem);
+  }
+
+  .group-companies-grid {
     grid-template-columns: 1fr;
     gap: 1.5rem;
   }
 
-  .metric-item {
-    padding: 1.25rem 1rem;
-    background: rgba(244, 236, 225, 0.6);
-    border-radius: 12px;
+  .group-company-card {
+    padding: 1.75rem 1.35rem;
+  }
+
+  .group-company-logo-wrap {
+    height: 75px;
+    margin-bottom: 1.25rem;
+    padding-bottom: 1rem;
+  }
+
+  .group-company-name {
+    font-size: 1.2rem;
   }
 
   /* Clients Section */
@@ -3250,9 +3378,14 @@ footer.site-footer {
     font-size: clamp(2.2rem, 7vw, 3rem);
   }
 
-  .project-card.full-width .project-image-wrapper,
-  .project-card.half-width .project-image-wrapper {
-    height: 210px;
+  .projects-grid {
+    grid-template-columns: 1fr;
+    gap: 1.75rem;
+  }
+
+  .project-image-wrapper {
+    aspect-ratio: 1 / 1;
+    height: auto;
   }
 
   .project-info-bar {
