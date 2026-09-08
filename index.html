@@ -9,16 +9,22 @@
 </head>
 <body class="home-page-body">
 
-  <!-- Hero Home Section (Direct Fullscreen Display without scroll requirement) -->
-  <section class="home-fullscreen-hero" id="home-hero">
-    
-    <!-- Background Luxury Backdrop -->
-    <div class="home-bg-wrapper">
-      <img src="images/dubai-villa-landing.png" alt="Luxury Dubai Architecture - Sandid Contracting" class="home-bg-media">
-    </div>
+  <!-- Hero Scroll Section with Frame Canvas Animation -->
+  <section class="hero-scroll-track" id="hero-scroll-track">
+    <div class="hero-sticky-frame">
+      <canvas id="hero-scroll-canvas"></canvas>
+      <div class="hero-canvas-vignette"></div>
 
-    <!-- Luxury Overlay Content -->
-    <div class="end-scroll-overlay is-visible" id="end-scroll-overlay">
+      <!-- Floating Scroll Indicator -->
+      <div class="scroll-cue" id="scroll-cue">
+        <span class="scroll-cue-text">SCROLL TO EXPLORE</span>
+        <div class="scroll-cue-icon">
+          <div class="scroll-cue-wheel"></div>
+        </div>
+      </div>
+
+      <!-- Luxury Overlay Content (Reveals smoothly at end of scroll) -->
+      <div class="end-scroll-overlay" id="end-scroll-overlay">
       
       <!-- Left Side Main Brand & Information Content -->
       <div class="end-overlay-left">
@@ -131,7 +137,8 @@
       </nav>
 
     </div>
-  </section>
+  </div>
+</section>
 
   <script src="script.js"></script>
 </body>
