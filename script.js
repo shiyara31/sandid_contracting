@@ -168,41 +168,64 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 4000);
   }
 
-  // Apple-Style Ultra-Smooth 60fps Canvas WebP Scroll Scrubbing
-  const canvas = document.getElementById('dubai-scroll-canvas');
-  const videoTrack = document.getElementById('video-scroll-track');
-  const videoOverlay = document.getElementById('video-scroll-overlay');
-  const fallbackVideo = document.getElementById('dubai-scroll-video');
+  // ======================================================================
+  // Ultra-Smooth 60fps Scroll-Based Frame Canvas Sequence (264 Frames)
+  // ======================================================================
+  const heroCanvas = document.getElementById('hero-scroll-canvas');
+  const heroTrack = document.getElementById('hero-scroll-track');
+  const scrollCue = document.getElementById('scroll-cue');
 
-  if ((canvas || fallbackVideo) && videoTrack) {
-    const totalFrames = 240;
-    const images = [];
-    let loadedCount = 0;
+  if (heroCanvas && heroTrack) {
+    const TOTAL_FRAMES = 264;
+    const images = new Array(TOTAL_FRAMES);
     let currentFrame = 0;
     let targetFrame = 0;
-    const ctx = canvas ? canvas.getContext('2d') : null;
+    const ctx = heroCanvas.getContext('2d');
 
-    // Helper to format frame filename with 3-digit zero padding
-    function getFrameUrl(index) {
+    // Helper to format frame filename: public/images/ezgif-frame-001.png to 264.png
+    function getHeroFrameUrl(index) {
       const padded = String(index + 1).padStart(3, '0');
-      return `images/drone-frames/frame_${padded}.webp`;
+      return `public/images/ezgif-frame-${padded}.png`;
     }
 
-    // Canvas object-fit cover rendering algorithm
-    function renderFrame(index) {
-      if (!ctx || !canvas) return;
+    // High-DPI Cover Drawing Algorithm
+    function renderHeroFrame(index) {
+      if (!ctx || !heroCanvas) return;
 
-      const img = images[index];
-      if (!img || !img.complete || img.naturalWidth === 0) return;
+      const frameIdx = Math.max(0, Math.min(TOTAL_FRAMES - 1, index));
+      const img = images[frameIdx];
 
-      // Handle retina / high-DPI scaling dynamically
-      const dpr = window.devicePixelRatio || 1;
-      const displayWidth = canvas.clientWidth || window.innerWidth;
-      const displayHeight = canvas.clientHeight || window.innerHeight;
+      if (!img || !img.complete || img.naturalWidth === 0) {
+        // Find nearest loaded frame as fallback to avoid any flicker during fast scrubbing
+        for (let offset = 1; offset < 30; offset++) {
+          const prevImg = images[frameIdx - offset];
+          if (prevImg && prevImg.complete && prevImg.naturalWidth > 0) {
+            drawCoverImage(prevImg);
+            return;
+          }
+          const nextImg = images[frameIdx + offset];
+          if (nextImg && nextImg.complete && nextImg.naturalWidth > 0) {
+            drawCoverImage(nextImg);
+            return;
+          }
+        }
+        return;
+      }
 
-      if (canvas.width !== displayWidth * dpr || canvas.height !== displayHeight * dpr) {
-        canvas.width = displayWidth * dpr;
-        canvas.height = displayHeight * dpr;
+      drawCoverImage(img);
+    }
+
+    function drawCoverImage(img) {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const displayWidth = heroCanvas.clientWidth || window.innerWidth;
+      const displayHeight = heroCanvas.clientHeight || window.innerHeight;
+
+      const targetWidth = Math.round(displayWidth * dpr);
+      const targetHeight = Math.round(displayHeight * dpr);
+
+      if (heroCanvas.width !== targetWidth || heroCanvas.height !== targetHeight) {
+        heroCanvas.width = targetWidth;
+        heroCanvas.height = targetHeight;
       }
 
       ctx.save();
@@ -210,7 +233,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const imgWidth = img.naturalWidth;
       const imgHeight = img.naturalHeight;
-
       const imgRatio = imgWidth / imgHeight;
       const canvasRatio = displayWidth / displayHeight;
 
@@ -233,53 +255,86 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.restore();
     }
 
-    // Preload image sequence with priority on early frames
-    for (let i = 0; i < totalFrames; i++) {
-      const img = new Image();
-      img.src = getFrameUrl(i);
-      img.onload = () => {
-        loadedCount++;
-        if (i === 0) {
-          renderFrame(0);
+    // 1. Immediately load frame 0 to paint hero screen instantly
+    const firstImg = new Image();
+    firstImg.src = getHeroFrameUrl(0);
+    firstImg.onload = () => {
+      images[0] = firstImg;
+      renderHeroFrame(0);
+    };
+    images[0] = firstImg;
+
+    // 2. Preload remaining frames with prioritized chunking
+    function preloadFrames() {
+      // Step 1: Preload keyframes at intervals for instant responsive scrubbing
+      for (let i = 0; i < TOTAL_FRAMES; i += 4) {
+        if (!images[i]) {
+          const img = new Image();
+          img.src = getHeroFrameUrl(i);
+          images[i] = img;
         }
-      };
-      images.push(img);
+      }
+
+      // Step 2: Preload all remaining in-between frames asynchronously
+      for (let i = 0; i < TOTAL_FRAMES; i++) {
+        if (!images[i]) {
+          const img = new Image();
+          img.src = getHeroFrameUrl(i);
+          images[i] = img;
+        }
+      }
     }
 
-    // Resize handler to ensure canvas remains crisp on window resize
+    if (typeof window.requestIdleCallback === 'function') {
+      window.requestIdleCallback(() => preloadFrames());
+    } else {
+      setTimeout(preloadFrames, 80);
+    }
+
+    // Responsive Canvas Resize
     window.addEventListener('resize', () => {
-      renderFrame(Math.round(currentFrame));
-    });
+      renderHeroFrame(Math.round(currentFrame));
+    }, { passive: true });
 
-    const endScrollOverlay = document.getElementById('end-scroll-overlay');
+    // Smooth Continuous Scrubbing Animation Loop
+    let lastRenderedFrame = -1;
 
-    // Continuous 60fps Smooth Lerp Scroll Scrub Loop
-    function smoothScrollLoop() {
-      const rect = videoTrack.getBoundingClientRect();
-      const maxScroll = videoTrack.offsetHeight - window.innerHeight;
+    function scrubLoop() {
+      const rect = heroTrack.getBoundingClientRect();
+      const maxScroll = heroTrack.offsetHeight - window.innerHeight;
 
       if (maxScroll > 0) {
-        // Scroll progress between 0.0 (top) and 1.0 (bottom)
         const progress = Math.max(0, Math.min(1, -rect.top / maxScroll));
-        targetFrame = progress * (totalFrames - 1);
+        targetFrame = progress * (TOTAL_FRAMES - 1);
 
-        // Smooth Lerp: 15% interpolation per frame for silky-smooth motion
+        // Hide or show scroll cue based on scroll progress
+        if (scrollCue) {
+          if (progress > 0.02) {
+            scrollCue.classList.add('is-hidden');
+          } else {
+            scrollCue.classList.remove('is-hidden');
+          }
+        }
+
+        // Silky smooth inertia interpolation (18% per frame)
         const diff = targetFrame - currentFrame;
         if (Math.abs(diff) > 0.01) {
-          currentFrame += diff * 0.15;
-          renderFrame(Math.round(currentFrame));
+          currentFrame += diff * 0.18;
+          const rounded = Math.round(currentFrame);
+          if (rounded !== lastRenderedFrame) {
+            renderHeroFrame(rounded);
+            lastRenderedFrame = rounded;
+          }
+        } else if (Math.round(targetFrame) !== lastRenderedFrame) {
+          currentFrame = targetFrame;
+          renderHeroFrame(Math.round(currentFrame));
+          lastRenderedFrame = Math.round(currentFrame);
         }
 
-        // Scale canvas element subtly during scroll for cinematic depth effect
-        const scaleAmount = 1 + (progress * 0.06);
-        const targetEl = canvas || fallbackVideo;
-        if (targetEl) {
-          targetEl.style.transform = `scale(${scaleAmount})`;
-        }
-
-        // Reveal luxury end-of-scroll overlay right as drone video completes descent to villa
+        // Reveal luxury brand text and overlay elements only towards the end of scroll
+        const endScrollOverlay = document.getElementById('end-scroll-overlay');
         if (endScrollOverlay) {
-          if (progress > 0.68) {
+          if (progress >= 0.72) {
             endScrollOverlay.classList.add('is-visible');
           } else {
             endScrollOverlay.classList.remove('is-visible');
@@ -287,11 +342,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      requestAnimationFrame(smoothScrollLoop);
+      requestAnimationFrame(scrubLoop);
     }
 
-    // Start 60fps continuous animation loop
-    requestAnimationFrame(smoothScrollLoop);
+    requestAnimationFrame(scrubLoop);
   }
 
   // ======================================================================
