@@ -3084,7 +3084,8 @@ footer.site-footer {
   z-index: 1;
   display: block;
   pointer-events: none;
-  filter: brightness(1.12) contrast(1.05) saturate(1.06);
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 .hero-canvas-vignette {
@@ -3092,8 +3093,8 @@ footer.site-footer {
   inset: 0;
   z-index: 2;
   pointer-events: none;
-  background: radial-gradient(circle at center, rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.25) 100%),
-    linear-gradient(to bottom, rgba(0, 0, 0, 0.18) 0%, transparent 25%, transparent 75%, rgba(0, 0, 0, 0.25) 100%);
+  background: radial-gradient(circle at center, rgba(0, 0, 0, 0) 60%, rgba(0, 0, 0, 0.15) 100%),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.12) 0%, transparent 20%, transparent 80%, rgba(0, 0, 0, 0.2) 100%);
 }
 
 /* Floating Scroll Indicator */

@@ -224,7 +224,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function drawCoverImage(img) {
       if (!ctx || !heroCanvas || !img || !img.naturalWidth) return;
 
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
       const displayWidth = window.innerWidth || document.documentElement.clientWidth || heroCanvas.clientWidth || 390;
       const displayHeight = window.innerHeight || document.documentElement.clientHeight || heroCanvas.clientHeight || 844;
 
@@ -239,56 +239,89 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.save();
       ctx.scale(dpr, dpr);
 
+      // High-quality bicubic interpolation for sharp rendering on Retina / 4K / Mobile screens
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+
       const imgWidth = img.naturalWidth;
       const imgHeight = img.naturalHeight;
 
-      // True 100% full-screen cover scaling (fills entire mobile height & width, eliminates black letterbox bars)
+      // True 100% full-screen cover scaling
       const scale = Math.max(displayWidth / imgWidth, displayHeight / imgHeight);
-      const drawWidth = imgWidth * scale;
-      const drawHeight = imgHeight * scale;
-      const offsetX = (displayWidth - drawWidth) / 2;
-      const offsetY = (displayHeight - drawHeight) / 2;
+      const drawWidth = Math.round(imgWidth * scale);
+      const drawHeight = Math.round(imgHeight * scale);
+      const offsetX = Math.round((displayWidth - drawWidth) / 2);
+      const offsetY = Math.round((displayHeight - drawHeight) / 2);
 
       ctx.clearRect(0, 0, displayWidth, displayHeight);
       ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
       ctx.restore();
     }
 
-    // 1. Immediately load frame 0 to paint hero screen instantly
-    const firstImg = new Image();
-    firstImg.src = getHeroFrameUrl(0);
-    firstImg.onload = () => {
-      images[0] = firstImg;
-      renderHeroFrame(0);
-    };
-    images[0] = firstImg;
+    // Load a single frame with async GPU decode for instant crispness
+    function loadSingleFrame(index, callback) {
+      if (images[index]) {
+        if (callback) callback(images[index]);
+        return images[index];
+      }
+      const img = new Image();
+      img.src = getHeroFrameUrl(index);
+      if (typeof img.decode === 'function') {
+        img.decode().catch(() => {}).then(() => {
+          images[index] = img;
+          if (callback) callback(img);
+        });
+      } else {
+        img.onload = () => {
+          images[index] = img;
+          if (callback) callback(img);
+        };
+      }
+      images[index] = img;
+      return img;
+    }
 
-    // 2. Preload remaining frames with prioritized chunking
+    // 1. Immediately load frame 0 with immediate paint
+    loadSingleFrame(0, () => renderHeroFrame(0));
+
+    // 2. High-performance prioritized frame preloading
     function preloadFrames() {
-      // Step 1: Preload keyframes at intervals for instant responsive scrubbing
-      for (let i = 0; i < TOTAL_FRAMES; i += 4) {
-        if (!images[i]) {
-          const img = new Image();
-          img.src = getHeroFrameUrl(i);
-          images[i] = img;
+      // Step A: Immediately load the first 30 frames for instantaneous initial scrolling
+      for (let i = 1; i < Math.min(30, TOTAL_FRAMES); i++) {
+        loadSingleFrame(i);
+      }
+
+      // Step B: Load keyframes at 4-frame intervals for responsive rapid scrubbing
+      for (let i = 30; i < TOTAL_FRAMES; i += 4) {
+        loadSingleFrame(i);
+      }
+
+      // Step C: Stream remaining frames progressively during idle time
+      let remainingIdx = 0;
+      function streamBatch() {
+        const batchEnd = Math.min(remainingIdx + 12, TOTAL_FRAMES);
+        for (; remainingIdx < batchEnd; remainingIdx++) {
+          if (!images[remainingIdx]) {
+            loadSingleFrame(remainingIdx);
+          }
+        }
+        if (remainingIdx < TOTAL_FRAMES) {
+          if (typeof window.requestIdleCallback === 'function') {
+            window.requestIdleCallback(streamBatch);
+          } else {
+            setTimeout(streamBatch, 40);
+          }
         }
       }
 
-      // Step 2: Preload all remaining in-between frames asynchronously
-      for (let i = 0; i < TOTAL_FRAMES; i++) {
-        if (!images[i]) {
-          const img = new Image();
-          img.src = getHeroFrameUrl(i);
-          images[i] = img;
-        }
+      if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(streamBatch);
+      } else {
+        setTimeout(streamBatch, 60);
       }
     }
 
-    if (typeof window.requestIdleCallback === 'function') {
-      window.requestIdleCallback(() => preloadFrames());
-    } else {
-      setTimeout(preloadFrames, 80);
-    }
+    preloadFrames();
 
     // Responsive Canvas Resize & Orientation Handling
     window.addEventListener('resize', () => {
