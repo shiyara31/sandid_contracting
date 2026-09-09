@@ -175,22 +175,42 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ======================================================================
-  // Ultra-Smooth 60fps Scroll-Based Frame Canvas Sequence (264 Frames)
+  // Ultra-Smooth 60fps Scroll-Based Frame Canvas Sequence (Desktop: 264 Frames | Mobile: 251 Frames)
   // ======================================================================
   const heroCanvas = document.getElementById('hero-scroll-canvas');
   const heroTrack = document.getElementById('hero-scroll-track');
   const scrollCue = document.getElementById('scroll-cue');
 
   if (heroCanvas && heroTrack) {
-    const TOTAL_FRAMES = 264;
-    const images = new Array(TOTAL_FRAMES);
+    const DESKTOP_TOTAL_FRAMES = 264;
+    const MOBILE_TOTAL_FRAMES = 251;
+
+    const desktopImages = new Array(DESKTOP_TOTAL_FRAMES);
+    const mobileImages = new Array(MOBILE_TOTAL_FRAMES);
+
+    let isMobile = window.innerWidth <= 768;
     let currentFrame = 0;
     let targetFrame = 0;
     const ctx = heroCanvas.getContext('2d', { alpha: false }) || heroCanvas.getContext('2d');
 
-    // Helper to format frame filename: public/images/ezgif-frame-001.png to 264.png
-    function getHeroFrameUrl(index) {
+    function checkIsMobile() {
+      return window.innerWidth <= 768;
+    }
+
+    function getTotalFrames() {
+      return isMobile ? MOBILE_TOTAL_FRAMES : DESKTOP_TOTAL_FRAMES;
+    }
+
+    function getActiveImages() {
+      return isMobile ? mobileImages : desktopImages;
+    }
+
+    // Helper to format frame filename: mobile view/images/ vs public/images/
+    function getHeroFrameUrl(index, mobileMode = isMobile) {
       const padded = String(index + 1).padStart(3, '0');
+      if (mobileMode) {
+        return `mobile view/images/ezgif-frame-${padded}.png`;
+      }
       return `public/images/ezgif-frame-${padded}.png`;
     }
 
@@ -198,7 +218,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderHeroFrame(index) {
       if (!ctx || !heroCanvas) return;
 
-      const frameIdx = Math.max(0, Math.min(TOTAL_FRAMES - 1, index));
+      const totalFrames = getTotalFrames();
+      const images = getActiveImages();
+      const frameIdx = Math.max(0, Math.min(totalFrames - 1, index));
       const img = images[frameIdx];
 
       if (!img || !img.complete || img.naturalWidth === 0) {
@@ -256,13 +278,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Load a single frame with async GPU decode for instant crispness
-    function loadSingleFrame(index, callback) {
+    function loadSingleFrame(index, mobileMode = isMobile, callback) {
+      const images = mobileMode ? mobileImages : desktopImages;
       if (images[index]) {
-        if (callback) callback(images[index]);
+        if (callback && images[index].complete) callback(images[index]);
         return images[index];
       }
       const img = new Image();
-      img.src = getHeroFrameUrl(index);
+      img.src = getHeroFrameUrl(index, mobileMode);
       if (typeof img.decode === 'function') {
         img.decode().catch(() => {}).then(() => {
           images[index] = img;
@@ -279,30 +302,33 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 1. Immediately load frame 0 with immediate paint
-    loadSingleFrame(0, () => renderHeroFrame(0));
+    loadSingleFrame(0, isMobile, () => renderHeroFrame(0));
 
     // 2. High-performance prioritized frame preloading
-    function preloadFrames() {
+    function preloadFrames(mobileMode = isMobile) {
+      const total = mobileMode ? MOBILE_TOTAL_FRAMES : DESKTOP_TOTAL_FRAMES;
+      const images = mobileMode ? mobileImages : desktopImages;
+
       // Step A: Immediately load the first 30 frames for instantaneous initial scrolling
-      for (let i = 1; i < Math.min(30, TOTAL_FRAMES); i++) {
-        loadSingleFrame(i);
+      for (let i = 0; i < Math.min(30, total); i++) {
+        loadSingleFrame(i, mobileMode);
       }
 
       // Step B: Load keyframes at 4-frame intervals for responsive rapid scrubbing
-      for (let i = 30; i < TOTAL_FRAMES; i += 4) {
-        loadSingleFrame(i);
+      for (let i = 30; i < total; i += 4) {
+        loadSingleFrame(i, mobileMode);
       }
 
       // Step C: Stream remaining frames progressively during idle time
       let remainingIdx = 0;
       function streamBatch() {
-        const batchEnd = Math.min(remainingIdx + 12, TOTAL_FRAMES);
+        const batchEnd = Math.min(remainingIdx + 12, total);
         for (; remainingIdx < batchEnd; remainingIdx++) {
           if (!images[remainingIdx]) {
-            loadSingleFrame(remainingIdx);
+            loadSingleFrame(remainingIdx, mobileMode);
           }
         }
-        if (remainingIdx < TOTAL_FRAMES) {
+        if (remainingIdx < total) {
           if (typeof window.requestIdleCallback === 'function') {
             window.requestIdleCallback(streamBatch);
           } else {
@@ -318,14 +344,21 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    preloadFrames();
+    preloadFrames(isMobile);
 
-    // Responsive Canvas Resize & Orientation Handling
-    window.addEventListener('resize', () => {
+    // Responsive Canvas Resize & Mode Switch Handling
+    function handleResizeOrOrientation() {
+      const newIsMobile = checkIsMobile();
+      if (newIsMobile !== isMobile) {
+        isMobile = newIsMobile;
+        preloadFrames(isMobile);
+      }
       renderHeroFrame(Math.round(currentFrame));
-    }, { passive: true });
+    }
+
+    window.addEventListener('resize', handleResizeOrOrientation, { passive: true });
     window.addEventListener('orientationchange', () => {
-      setTimeout(() => renderHeroFrame(Math.round(currentFrame)), 100);
+      setTimeout(handleResizeOrOrientation, 100);
     }, { passive: true });
 
     // Smooth Continuous Scrubbing Animation Loop
@@ -337,7 +370,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (maxScroll > 0) {
         const progress = Math.max(0, Math.min(1, -rect.top / maxScroll));
-        targetFrame = progress * (TOTAL_FRAMES - 1);
+        const totalFrames = getTotalFrames();
+        targetFrame = progress * (totalFrames - 1);
 
         // Hide or show scroll cue based on scroll progress
         if (scrollCue) {
