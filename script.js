@@ -222,9 +222,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawCoverImage(img) {
+      if (!ctx || !heroCanvas || !img || !img.naturalWidth) return;
+
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const displayWidth = heroCanvas.clientWidth || window.innerWidth;
-      const displayHeight = heroCanvas.clientHeight || window.innerHeight;
+      const displayWidth = window.innerWidth || document.documentElement.clientWidth || heroCanvas.clientWidth || 390;
+      const displayHeight = window.innerHeight || document.documentElement.clientHeight || heroCanvas.clientHeight || 844;
 
       const targetWidth = Math.round(displayWidth * dpr);
       const targetHeight = Math.round(displayHeight * dpr);
@@ -239,22 +241,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const imgWidth = img.naturalWidth;
       const imgHeight = img.naturalHeight;
-      const imgRatio = imgWidth / imgHeight;
-      const canvasRatio = displayWidth / displayHeight;
 
-      let drawWidth, drawHeight, offsetX, offsetY;
-
-      if (canvasRatio > imgRatio) {
-        drawWidth = displayWidth;
-        drawHeight = displayWidth / imgRatio;
-        offsetX = 0;
-        offsetY = (displayHeight - drawHeight) / 2;
-      } else {
-        drawWidth = displayHeight * imgRatio;
-        drawHeight = displayHeight;
-        offsetX = (displayWidth - drawWidth) / 2;
-        offsetY = 0;
-      }
+      // True 100% full-screen cover scaling (fills entire mobile height & width, eliminates black letterbox bars)
+      const scale = Math.max(displayWidth / imgWidth, displayHeight / imgHeight);
+      const drawWidth = imgWidth * scale;
+      const drawHeight = imgHeight * scale;
+      const offsetX = (displayWidth - drawWidth) / 2;
+      const offsetY = (displayHeight - drawHeight) / 2;
 
       ctx.clearRect(0, 0, displayWidth, displayHeight);
       ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
@@ -297,9 +290,12 @@ document.addEventListener('DOMContentLoaded', () => {
       setTimeout(preloadFrames, 80);
     }
 
-    // Responsive Canvas Resize
+    // Responsive Canvas Resize & Orientation Handling
     window.addEventListener('resize', () => {
       renderHeroFrame(Math.round(currentFrame));
+    }, { passive: true });
+    window.addEventListener('orientationchange', () => {
+      setTimeout(() => renderHeroFrame(Math.round(currentFrame)), 100);
     }, { passive: true });
 
     // Smooth Continuous Scrubbing Animation Loop
