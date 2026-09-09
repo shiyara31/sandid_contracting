@@ -99,10 +99,16 @@ document.addEventListener('DOMContentLoaded', () => {
         projectCards.forEach(card => {
           const categories = card.getAttribute('data-category') || '';
           if (filterValue === 'all' || categories.includes(filterValue)) {
-            card.style.display = 'block';
+            card.style.display = '';
           } else {
             card.style.display = 'none';
           }
+        });
+
+        // Toggle two-column row wrapper if all cards inside it are hidden
+        document.querySelectorAll('.projects-row-two-col').forEach(row => {
+          const visibleChildren = Array.from(row.querySelectorAll('.project-card')).filter(c => c.style.display !== 'none');
+          row.style.display = visibleChildren.length > 0 ? '' : 'none';
         });
       });
     });
