@@ -218,29 +218,21 @@ document.addEventListener('DOMContentLoaded', () => {
       return `public/images/ezgif-frame-${padded}.png`;
     }
 
-    // Ensure Canvas Backing Store Matches Native Display Hardware DPI
-    function updateCanvasDimensions() {
+    // Set Canvas directly to Full Native Raw Resolution of the frame (1080x1920 on Mobile, 1280x720 on Desktop)
+    function updateCanvasDimensions(naturalWidth, naturalHeight) {
       if (!heroCanvas || !ctx) return;
-      const dpr = Math.min(window.devicePixelRatio || 1, 3);
-      const rect = heroCanvas.getBoundingClientRect();
-      const displayWidth = rect.width || window.innerWidth || 390;
-      const displayHeight = rect.height || window.innerHeight || 844;
+      const targetWidth = naturalWidth || (isMobile ? 1080 : 1280);
+      const targetHeight = naturalHeight || (isMobile ? 1920 : 720);
 
-      const physicalWidth = Math.round(displayWidth * dpr);
-      const physicalHeight = Math.round(displayHeight * dpr);
-
-      if (heroCanvas.width !== physicalWidth || heroCanvas.height !== physicalHeight) {
-        heroCanvas.width = physicalWidth;
-        heroCanvas.height = physicalHeight;
+      if (heroCanvas.width !== targetWidth || heroCanvas.height !== targetHeight) {
+        heroCanvas.width = targetWidth;
+        heroCanvas.height = targetHeight;
       }
-
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
     }
 
     updateCanvasDimensions();
 
-    // High-Definition Direct Hardware Cover Drawing Algorithm
+    // High-Definition Direct Native Pixel Drawing (100% Zero-Compression Fidelity)
     function renderHeroFrame(index) {
       if (!ctx || !heroCanvas) return;
 
@@ -287,24 +279,17 @@ document.addEventListener('DOMContentLoaded', () => {
     function drawCoverImage(img) {
       if (!ctx || !heroCanvas || !img || !img.naturalWidth) return;
 
-      const canvasWidth = heroCanvas.width;
-      const canvasHeight = heroCanvas.height;
-      if (canvasWidth === 0 || canvasHeight === 0) return;
-
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-
       const imgWidth = img.naturalWidth;
       const imgHeight = img.naturalHeight;
 
-      // 1:1 hardware pixel cover scaling
-      const scale = Math.max(canvasWidth / imgWidth, canvasHeight / imgHeight);
-      const drawWidth = imgWidth * scale;
-      const drawHeight = imgHeight * scale;
-      const offsetX = (canvasWidth - drawWidth) * 0.5;
-      const offsetY = (canvasHeight - drawHeight) * 0.5;
+      // Match internal canvas buffer exactly to native raw uncompressed dimensions
+      if (heroCanvas.width !== imgWidth || heroCanvas.height !== imgHeight) {
+        heroCanvas.width = imgWidth;
+        heroCanvas.height = imgHeight;
+      }
 
-      ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+      // 1:1 direct pixel blit with zero downsampling and zero loss of clarity
+      ctx.drawImage(img, 0, 0, imgWidth, imgHeight);
     }
 
     // High-performance image loader with GPU decode
@@ -458,6 +443,39 @@ document.addEventListener('DOMContentLoaded', () => {
     // Direct scroll and touch listener for instant mobile responsiveness
     window.addEventListener('scroll', updateScrollProgress, { passive: true });
     window.addEventListener('touchmove', updateScrollProgress, { passive: true });
+
+    // Bridge Touch and Wheel on End Overlay to Window Scroll for Seamless Backward Scrubbing
+    const endScrollOverlay = document.getElementById('end-scroll-overlay');
+    if (endScrollOverlay) {
+      let lastTouchY = 0;
+
+      endScrollOverlay.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+          lastTouchY = e.touches[0].clientY;
+        }
+      }, { passive: true });
+
+      endScrollOverlay.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 1) {
+          const currentY = e.touches[0].clientY;
+          const deltaY = currentY - lastTouchY;
+          lastTouchY = currentY;
+
+          // If pulling down at top of overlay, scroll the window backwards
+          if (deltaY > 0 && endScrollOverlay.scrollTop <= 1) {
+            window.scrollBy({ top: -deltaY * 1.6, behavior: 'auto' });
+            updateScrollProgress();
+          }
+        }
+      }, { passive: true });
+
+      endScrollOverlay.addEventListener('wheel', (e) => {
+        if (e.deltaY < 0 && endScrollOverlay.scrollTop <= 1) {
+          window.scrollBy({ top: e.deltaY, behavior: 'auto' });
+          updateScrollProgress();
+        }
+      }, { passive: true });
+    }
 
     // Smooth Continuous Scrubbing Animation Loop
     function scrubLoop() {

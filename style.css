@@ -3083,6 +3083,8 @@ footer.site-footer {
   left: 0;
   width: 100%;
   height: 100%;
+  object-fit: cover;
+  object-position: center;
   z-index: 1;
   display: block;
   pointer-events: none;
@@ -3092,8 +3094,6 @@ footer.site-footer {
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   will-change: transform;
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
 }
 
 .hero-canvas-vignette {
@@ -3903,122 +3903,122 @@ footer.site-footer {
     padding-top: 1.25rem;
   }
 
-  /* End-of-Scroll Overlay (index.html) - Perfectly fitted into single mobile screen with full bidirectional scroll */
+  /* End-of-Scroll Overlay (index.html) - Full-Page Rich Typography with Zero Middle Gap */
   .end-scroll-overlay {
-    padding: clamp(0.9rem, 2vh, 1.4rem) clamp(1rem, 3.5vw, 1.4rem);
+    padding: 2.2rem 1.4rem 4.5rem;
     flex-direction: column;
-    justify-content: space-between;
+    justify-content: flex-start;
     height: 100vh;
     height: 100dvh;
-    overflow: hidden;
-    box-sizing: border-box;
-    pointer-events: none !important;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     touch-action: pan-y;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(200, 169, 126, 0.35) transparent;
   }
 
-  .end-scroll-overlay.is-visible {
-    pointer-events: none !important;
+  .end-scroll-overlay::-webkit-scrollbar {
+    width: 4px;
   }
 
-  .end-scroll-overlay.is-visible .right-nav-item,
-  .end-scroll-overlay.is-visible .social-icon-btn,
-  .end-scroll-overlay.is-visible a {
-    pointer-events: auto !important;
+  .end-scroll-overlay::-webkit-scrollbar-thumb {
+    background: rgba(200, 169, 126, 0.35);
+    border-radius: 4px;
   }
 
   .end-overlay-left {
     width: 100%;
     max-width: 100%;
-    margin-bottom: 0;
+    margin-bottom: 1.5rem;
   }
 
   .gold-accent-top {
-    width: 32px;
+    width: 48px;
     height: 2px;
-    margin-bottom: clamp(0.2rem, 0.6vh, 0.45rem);
+    margin-bottom: 0.9rem;
   }
 
   .end-brand-block {
-    margin-bottom: clamp(0.12rem, 0.35vh, 0.3rem);
+    margin-bottom: 0.75rem;
   }
 
   .yono-brand-title {
-    font-size: clamp(1.95rem, 4.8vh, 2.5rem);
-    line-height: 0.95;
+    font-size: clamp(2.8rem, 8.5vw, 3.5rem);
+    line-height: 1.0;
   }
 
   .yono-brand-subtitle {
-    font-size: clamp(0.55rem, 1vh, 0.64rem);
-    letter-spacing: 0.28em;
-    margin-top: 0.2rem;
+    font-size: 0.76rem;
+    letter-spacing: 0.42em;
+    margin-top: 0.45rem;
   }
 
   .gold-divider-line {
-    margin: clamp(0.25rem, 0.5vh, 0.4rem) 0 clamp(0.25rem, 0.6vh, 0.5rem) 0;
+    margin: 0.9rem 0 1.25rem;
     max-width: 100%;
   }
 
   .end-description-text {
-    font-size: clamp(0.72rem, 1.35vh, 0.82rem);
-    line-height: 1.35;
-    margin-bottom: clamp(0.25rem, 0.6vh, 0.5rem);
+    font-size: clamp(1.05rem, 3.5vw, 1.2rem);
+    line-height: 1.65;
+    margin-bottom: 1.35rem;
   }
 
   .end-description-text p {
-    margin-bottom: clamp(0.12rem, 0.3vh, 0.25rem);
+    margin-bottom: 0.85rem;
   }
 
   .end-social-footer {
-    margin-bottom: clamp(0.25rem, 0.6vh, 0.5rem);
-    gap: 0.45rem;
+    margin-bottom: 1.5rem;
+    gap: 0.75rem;
   }
 
   .social-label {
-    font-size: clamp(0.58rem, 1vh, 0.65rem);
-    letter-spacing: 0.14em;
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
   }
 
   .social-icon-btn {
-    width: clamp(28px, 3.6vh, 32px);
-    height: clamp(28px, 3.6vh, 32px);
+    width: 38px;
+    height: 38px;
   }
 
   .social-icon-btn svg {
-    width: 14px;
-    height: 14px;
+    width: 17px;
+    height: 17px;
   }
 
   .end-overlay-right-nav {
     width: 100%;
     min-width: unset;
-    padding-bottom: 0;
+    padding-bottom: 2rem;
   }
 
   .right-nav-item {
-    padding: clamp(0.3rem, 0.85vh, 0.45rem) clamp(0.6rem, 2vw, 0.85rem);
+    padding: 0.75rem 1rem;
   }
 
   .nav-item-icon {
-    margin-right: 0.7rem;
+    margin-right: 0.9rem;
   }
 
   .nav-item-icon svg {
-    width: clamp(14px, 1.8vh, 16px);
-    height: clamp(14px, 1.8vh, 16px);
+    width: 19px;
+    height: 19px;
   }
 
   .nav-item-divider {
-    height: 12px;
-    margin-right: 0.75rem;
+    height: 16px;
+    margin-right: 1.1rem;
   }
 
   .nav-item-text {
-    font-size: clamp(0.68rem, 1.2vh, 0.75rem);
-    letter-spacing: 0.12em;
+    font-size: 0.82rem;
+    letter-spacing: 0.16em;
   }
 
   .nav-item-arrow {
-    font-size: clamp(0.85rem, 1.4vh, 0.95rem);
+    font-size: 1.05rem;
   }
 }
 
