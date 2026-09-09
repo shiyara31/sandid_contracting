@@ -3073,6 +3073,8 @@ footer.site-footer {
   display: flex;
   align-items: center;
   justify-content: center;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 
 #hero-scroll-canvas {
@@ -3084,6 +3086,7 @@ footer.site-footer {
   z-index: 1;
   display: block;
   pointer-events: none;
+  touch-action: pan-y;
   transform: translateZ(0);
   will-change: transform;
 }
@@ -3526,9 +3529,9 @@ footer.site-footer {
     flex-direction: column;
     justify-content: flex-start;
     padding: 3rem 2rem;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
     height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
   }
 
   .end-overlay-left {

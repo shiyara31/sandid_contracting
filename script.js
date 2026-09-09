@@ -187,10 +187,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const desktopImages = new Array(DESKTOP_TOTAL_FRAMES);
     const mobileImages = new Array(MOBILE_TOTAL_FRAMES);
+    const pendingCallbacks = {};
 
     let isMobile = window.innerWidth <= 768;
     let currentFrame = 0;
     let targetFrame = 0;
+    let lastRenderedFrame = -1;
+    let lastSuccessfullyDrawnFrame = -1;
     const ctx = heroCanvas.getContext('2d', { alpha: false }) || heroCanvas.getContext('2d');
 
     function checkIsMobile() {
@@ -205,11 +208,11 @@ document.addEventListener('DOMContentLoaded', () => {
       return isMobile ? mobileImages : desktopImages;
     }
 
-    // Helper to format frame filename: mobile view/images/ vs public/images/
+    // Helper to format frame filename with URL encoding (handles spaces like mobile%20view)
     function getHeroFrameUrl(index, mobileMode = isMobile) {
       const padded = String(index + 1).padStart(3, '0');
       if (mobileMode) {
-        return `mobile view/images/ezgif-frame-${padded}.png`;
+        return encodeURI(`mobile view/images/ezgif-frame-${padded}.png`);
       }
       return `public/images/ezgif-frame-${padded}.png`;
     }
@@ -220,33 +223,48 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const totalFrames = getTotalFrames();
       const images = getActiveImages();
-      const frameIdx = Math.max(0, Math.min(totalFrames - 1, index));
+      const frameIdx = Math.max(0, Math.min(totalFrames - 1, Math.round(index)));
       const img = images[frameIdx];
 
-      if (!img || !img.complete || img.naturalWidth === 0) {
-        // Find nearest loaded frame as fallback to avoid any flicker during fast scrubbing
-        for (let offset = 1; offset < 30; offset++) {
-          const prevImg = images[frameIdx - offset];
-          if (prevImg && prevImg.complete && prevImg.naturalWidth > 0) {
-            drawCoverImage(prevImg);
-            return;
-          }
-          const nextImg = images[frameIdx + offset];
-          if (nextImg && nextImg.complete && nextImg.naturalWidth > 0) {
-            drawCoverImage(nextImg);
-            return;
-          }
-        }
+      if (img && img.complete && img.naturalWidth > 0) {
+        drawCoverImage(img);
+        lastSuccessfullyDrawnFrame = frameIdx;
         return;
       }
 
-      drawCoverImage(img);
+      // If requested frame isn't loaded yet, request it immediately
+      loadSingleFrame(frameIdx, isMobile, (loadedImg) => {
+        if (Math.round(currentFrame) === frameIdx) {
+          drawCoverImage(loadedImg);
+          lastSuccessfullyDrawnFrame = frameIdx;
+        }
+      });
+
+      // Find closest loaded frame as seamless fallback so screen never goes blank or freezes
+      let bestImg = null;
+      let minDistance = Infinity;
+
+      for (let i = 0; i < totalFrames; i++) {
+        const candidate = images[i];
+        if (candidate && candidate.complete && candidate.naturalWidth > 0) {
+          const dist = Math.abs(i - frameIdx);
+          if (dist < minDistance) {
+            minDistance = dist;
+            bestImg = candidate;
+            if (dist === 1) break;
+          }
+        }
+      }
+
+      if (bestImg) {
+        drawCoverImage(bestImg);
+      }
     }
 
     function drawCoverImage(img) {
       if (!ctx || !heroCanvas || !img || !img.naturalWidth) return;
 
-      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
       const rect = heroCanvas.getBoundingClientRect();
       const displayWidth = rect.width || window.innerWidth || document.documentElement.clientWidth || 390;
       const displayHeight = rect.height || window.innerHeight || document.documentElement.clientHeight || 844;
@@ -260,14 +278,13 @@ document.addEventListener('DOMContentLoaded', () => {
         heroCanvas.height = physicalHeight;
       }
 
-      // High-quality bicubic interpolation directly to hardware screen buffer
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
 
       const imgWidth = img.naturalWidth;
       const imgHeight = img.naturalHeight;
 
-      // 1:1 physical pixel cover scaling for maximum native clarity on mobile and desktop
+      // 1:1 physical pixel cover scaling for maximum native clarity
       const scale = Math.max(physicalWidth / imgWidth, physicalHeight / imgHeight);
       const drawWidth = Math.round(imgWidth * scale);
       const drawHeight = Math.round(imgHeight * scale);
@@ -277,31 +294,63 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
     }
 
-    // Load a single frame with async GPU decode for instant crispness
+    // Load a single frame with async GPU decode and desktop fallback support
     function loadSingleFrame(index, mobileMode = isMobile, callback) {
       const images = mobileMode ? mobileImages : desktopImages;
-      if (images[index]) {
-        if (callback && images[index].complete) callback(images[index]);
+      const key = `${mobileMode ? 'm' : 'd'}_${index}`;
+
+      if (images[index] && images[index].complete && images[index].naturalWidth > 0) {
+        if (callback) callback(images[index]);
         return images[index];
       }
-      const img = new Image();
-      img.src = getHeroFrameUrl(index, mobileMode);
-      if (typeof img.decode === 'function') {
-        img.decode().catch(() => {}).then(() => {
-          images[index] = img;
-          if (callback) callback(img);
-        });
-      } else {
-        img.onload = () => {
-          images[index] = img;
-          if (callback) callback(img);
-        };
+
+      if (callback) {
+        if (!pendingCallbacks[key]) pendingCallbacks[key] = [];
+        pendingCallbacks[key].push(callback);
       }
+
+      if (images[index]) {
+        return images[index];
+      }
+
+      const img = new Image();
+      const url = getHeroFrameUrl(index, mobileMode);
+      img.src = url;
+
+      function onFrameLoaded(loadedImg) {
+        images[index] = loadedImg;
+        const cbs = pendingCallbacks[key];
+        if (cbs && cbs.length > 0) {
+          delete pendingCallbacks[key];
+          cbs.forEach(cb => cb(loadedImg));
+        }
+        if (Math.round(currentFrame) === index || lastSuccessfullyDrawnFrame === -1) {
+          renderHeroFrame(Math.round(currentFrame));
+        }
+      }
+
+      img.onload = () => {
+        if (typeof img.decode === 'function') {
+          img.decode().catch(() => {}).then(() => onFrameLoaded(img));
+        } else {
+          onFrameLoaded(img);
+        }
+      };
+
+      img.onerror = () => {
+        // Fallback: If mobile view frame fails, load desktop frame as seamless fallback
+        if (mobileMode) {
+          const fallbackImg = new Image();
+          fallbackImg.src = `public/images/ezgif-frame-${String(index + 1).padStart(3, '0')}.png`;
+          fallbackImg.onload = () => onFrameLoaded(fallbackImg);
+        }
+      };
+
       images[index] = img;
       return img;
     }
 
-    // 1. Immediately load frame 0 with immediate paint
+    // 1. Immediately load initial keyframes for instant rendering
     loadSingleFrame(0, isMobile, () => renderHeroFrame(0));
 
     // 2. High-performance prioritized frame preloading
@@ -309,20 +358,20 @@ document.addEventListener('DOMContentLoaded', () => {
       const total = mobileMode ? MOBILE_TOTAL_FRAMES : DESKTOP_TOTAL_FRAMES;
       const images = mobileMode ? mobileImages : desktopImages;
 
-      // Step A: Immediately load the first 30 frames for instantaneous initial scrolling
-      for (let i = 0; i < Math.min(30, total); i++) {
+      // Priority A: Load the first 15 frames immediately
+      for (let i = 0; i < Math.min(15, total); i++) {
         loadSingleFrame(i, mobileMode);
       }
 
-      // Step B: Load keyframes at 4-frame intervals for responsive rapid scrubbing
-      for (let i = 30; i < total; i += 4) {
+      // Priority B: Load keyframes across entire sequence (every 4th frame)
+      for (let i = 16; i < total; i += 4) {
         loadSingleFrame(i, mobileMode);
       }
 
-      // Step C: Stream remaining frames progressively during idle time
+      // Priority C: Stream remaining frames progressively during idle time
       let remainingIdx = 0;
       function streamBatch() {
-        const batchEnd = Math.min(remainingIdx + 12, total);
+        const batchEnd = Math.min(remainingIdx + 8, total);
         for (; remainingIdx < batchEnd; remainingIdx++) {
           if (!images[remainingIdx]) {
             loadSingleFrame(remainingIdx, mobileMode);
@@ -330,17 +379,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (remainingIdx < total) {
           if (typeof window.requestIdleCallback === 'function') {
-            window.requestIdleCallback(streamBatch);
+            window.requestIdleCallback(streamBatch, { timeout: 100 });
           } else {
-            setTimeout(streamBatch, 40);
+            setTimeout(streamBatch, 30);
           }
         }
       }
 
       if (typeof window.requestIdleCallback === 'function') {
-        window.requestIdleCallback(streamBatch);
+        window.requestIdleCallback(streamBatch, { timeout: 100 });
       } else {
-        setTimeout(streamBatch, 60);
+        setTimeout(streamBatch, 50);
       }
     }
 
@@ -361,10 +410,8 @@ document.addEventListener('DOMContentLoaded', () => {
       setTimeout(handleResizeOrOrientation, 100);
     }, { passive: true });
 
-    // Smooth Continuous Scrubbing Animation Loop
-    let lastRenderedFrame = -1;
-
-    function scrubLoop() {
+    // Calculate current scroll progress and target frame
+    function updateScrollProgress() {
       const rect = heroTrack.getBoundingClientRect();
       const maxScroll = heroTrack.offsetHeight - window.innerHeight;
 
@@ -382,22 +429,7 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }
 
-        // Silky smooth inertia interpolation (18% per frame)
-        const diff = targetFrame - currentFrame;
-        if (Math.abs(diff) > 0.01) {
-          currentFrame += diff * 0.18;
-          const rounded = Math.round(currentFrame);
-          if (rounded !== lastRenderedFrame) {
-            renderHeroFrame(rounded);
-            lastRenderedFrame = rounded;
-          }
-        } else if (Math.round(targetFrame) !== lastRenderedFrame) {
-          currentFrame = targetFrame;
-          renderHeroFrame(Math.round(currentFrame));
-          lastRenderedFrame = Math.round(currentFrame);
-        }
-
-        // Reveal luxury brand text and overlay elements only towards the end of scroll
+        // Reveal luxury brand text and overlay elements towards end of scroll
         const endScrollOverlay = document.getElementById('end-scroll-overlay');
         if (endScrollOverlay) {
           if (progress >= 0.72) {
@@ -406,6 +438,30 @@ document.addEventListener('DOMContentLoaded', () => {
             endScrollOverlay.classList.remove('is-visible');
           }
         }
+      }
+    }
+
+    // Direct scroll and touch listener for instant mobile responsiveness
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+    window.addEventListener('touchmove', updateScrollProgress, { passive: true });
+
+    // Smooth Continuous Scrubbing Animation Loop
+    function scrubLoop() {
+      updateScrollProgress();
+
+      // Smooth inertia interpolation (22% per frame for snappy responsive mobile feel)
+      const diff = targetFrame - currentFrame;
+      if (Math.abs(diff) > 0.01) {
+        currentFrame += diff * 0.22;
+        const rounded = Math.round(currentFrame);
+        if (rounded !== lastRenderedFrame) {
+          renderHeroFrame(rounded);
+          lastRenderedFrame = rounded;
+        }
+      } else if (Math.round(targetFrame) !== lastRenderedFrame) {
+        currentFrame = targetFrame;
+        renderHeroFrame(Math.round(currentFrame));
+        lastRenderedFrame = Math.round(currentFrame);
       }
 
       requestAnimationFrame(scrubLoop);
