@@ -186,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const images = new Array(TOTAL_FRAMES);
     let currentFrame = 0;
     let targetFrame = 0;
-    const ctx = heroCanvas.getContext('2d');
+    const ctx = heroCanvas.getContext('2d', { alpha: false }) || heroCanvas.getContext('2d');
 
     // Helper to format frame filename: public/images/ezgif-frame-001.png to 264.png
     function getHeroFrameUrl(index) {
@@ -194,7 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return `public/images/ezgif-frame-${padded}.png`;
     }
 
-    // High-DPI Cover Drawing Algorithm
+    // High-DPI Direct Pixel Cover Drawing Algorithm
     function renderHeroFrame(index) {
       if (!ctx || !heroCanvas) return;
 
@@ -224,38 +224,35 @@ document.addEventListener('DOMContentLoaded', () => {
     function drawCoverImage(img) {
       if (!ctx || !heroCanvas || !img || !img.naturalWidth) return;
 
-      const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
-      const displayWidth = window.innerWidth || document.documentElement.clientWidth || heroCanvas.clientWidth || 390;
-      const displayHeight = window.innerHeight || document.documentElement.clientHeight || heroCanvas.clientHeight || 844;
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      const rect = heroCanvas.getBoundingClientRect();
+      const displayWidth = rect.width || window.innerWidth || document.documentElement.clientWidth || 390;
+      const displayHeight = rect.height || window.innerHeight || document.documentElement.clientHeight || 844;
 
-      const targetWidth = Math.round(displayWidth * dpr);
-      const targetHeight = Math.round(displayHeight * dpr);
+      const physicalWidth = Math.round(displayWidth * dpr);
+      const physicalHeight = Math.round(displayHeight * dpr);
 
-      if (heroCanvas.width !== targetWidth || heroCanvas.height !== targetHeight) {
-        heroCanvas.width = targetWidth;
-        heroCanvas.height = targetHeight;
+      // Match canvas internal backing store directly to hardware physical pixels
+      if (heroCanvas.width !== physicalWidth || heroCanvas.height !== physicalHeight) {
+        heroCanvas.width = physicalWidth;
+        heroCanvas.height = physicalHeight;
       }
 
-      ctx.save();
-      ctx.scale(dpr, dpr);
-
-      // High-quality bicubic interpolation for sharp rendering on Retina / 4K / Mobile screens
+      // High-quality bicubic interpolation directly to hardware screen buffer
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
 
       const imgWidth = img.naturalWidth;
       const imgHeight = img.naturalHeight;
 
-      // True 100% full-screen cover scaling
-      const scale = Math.max(displayWidth / imgWidth, displayHeight / imgHeight);
+      // 1:1 physical pixel cover scaling for maximum native clarity on mobile and desktop
+      const scale = Math.max(physicalWidth / imgWidth, physicalHeight / imgHeight);
       const drawWidth = Math.round(imgWidth * scale);
       const drawHeight = Math.round(imgHeight * scale);
-      const offsetX = Math.round((displayWidth - drawWidth) / 2);
-      const offsetY = Math.round((displayHeight - drawHeight) / 2);
+      const offsetX = Math.round((physicalWidth - drawWidth) / 2);
+      const offsetY = Math.round((physicalHeight - drawHeight) / 2);
 
-      ctx.clearRect(0, 0, displayWidth, displayHeight);
       ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
-      ctx.restore();
     }
 
     // Load a single frame with async GPU decode for instant crispness
