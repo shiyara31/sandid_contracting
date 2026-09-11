@@ -175,249 +175,19 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ======================================================================
-  // Studio-Grade 60fps Scroll-Based Frame Canvas Sequence (Desktop: 264 Frames | Mobile: 251 Frames)
+  // Hero Scroll Track & End Overlay Progress Handling
   // ======================================================================
-  const heroCanvas = document.getElementById('hero-scroll-canvas');
   const heroTrack = document.getElementById('hero-scroll-track');
   const scrollCue = document.getElementById('scroll-cue');
+  const endScrollOverlay = document.getElementById('end-scroll-overlay');
 
-  if (heroCanvas && heroTrack) {
-    const DESKTOP_TOTAL_FRAMES = 264;
-    const MOBILE_TOTAL_FRAMES = 251;
-
-    const desktopImages = new Array(DESKTOP_TOTAL_FRAMES);
-    const mobileImages = new Array(MOBILE_TOTAL_FRAMES);
-    const pendingCallbacks = {};
-
-    let isMobile = checkIsMobile();
-    let currentFrame = 0;
-    let targetFrame = 0;
-    let lastRenderedFrame = -1;
-    let lastSuccessfullyDrawnFrame = -1;
-    const ctx = heroCanvas.getContext('2d', { alpha: false, desynchronized: true }) || heroCanvas.getContext('2d');
-
-    function checkIsMobile() {
-      // Use portrait 1080x1920 frames for mobile or any portrait viewport
-      return window.innerWidth <= 768 || window.innerHeight > window.innerWidth;
-    }
-
-    function getTotalFrames() {
-      return isMobile ? MOBILE_TOTAL_FRAMES : DESKTOP_TOTAL_FRAMES;
-    }
-
-    function getActiveImages() {
-      return isMobile ? mobileImages : desktopImages;
-    }
-
-    // Helper to format frame filename with URL encoding (handles spaces)
-    function getHeroFrameUrl(index, mobileMode = isMobile) {
-      const padded = String(index + 1).padStart(3, '0');
-      if (mobileMode) {
-        return encodeURI(`mobile view/images/ezgif-frame-${padded}.png`);
-      }
-      return `public/images/ezgif-frame-${padded}.png`;
-    }
-
-    // Set Canvas directly to Full Native Raw Resolution of the frame (1080x1920 on Mobile, 1280x720 on Desktop)
-    function updateCanvasDimensions(naturalWidth, naturalHeight) {
-      if (!heroCanvas || !ctx) return;
-      const targetWidth = naturalWidth || (isMobile ? 1080 : 1280);
-      const targetHeight = naturalHeight || (isMobile ? 1920 : 720);
-
-      if (heroCanvas.width !== targetWidth || heroCanvas.height !== targetHeight) {
-        heroCanvas.width = targetWidth;
-        heroCanvas.height = targetHeight;
-      }
-    }
-
-    updateCanvasDimensions();
-
-    // High-Definition Direct Native Pixel Drawing (100% Zero-Compression Fidelity)
-    function renderHeroFrame(index) {
-      if (!ctx || !heroCanvas) return;
-
-      const totalFrames = getTotalFrames();
-      const images = getActiveImages();
-      const frameIdx = Math.max(0, Math.min(totalFrames - 1, Math.round(index)));
-      const img = images[frameIdx];
-
-      if (img && img.complete && img.naturalWidth > 0) {
-        drawCoverImage(img);
-        lastSuccessfullyDrawnFrame = frameIdx;
-        return;
-      }
-
-      // If requested frame isn't loaded yet, request it immediately
-      loadSingleFrame(frameIdx, isMobile, (loadedImg) => {
-        if (Math.round(currentFrame) === frameIdx) {
-          drawCoverImage(loadedImg);
-          lastSuccessfullyDrawnFrame = frameIdx;
-        }
-      });
-
-      // Nearest loaded frame fallback
-      let bestImg = null;
-      let minDistance = Infinity;
-
-      for (let i = 0; i < totalFrames; i++) {
-        const candidate = images[i];
-        if (candidate && candidate.complete && candidate.naturalWidth > 0) {
-          const dist = Math.abs(i - frameIdx);
-          if (dist < minDistance) {
-            minDistance = dist;
-            bestImg = candidate;
-            if (dist === 1) break;
-          }
-        }
-      }
-
-      if (bestImg) {
-        drawCoverImage(bestImg);
-      }
-    }
-
-    function drawCoverImage(img) {
-      if (!ctx || !heroCanvas || !img || !img.naturalWidth) return;
-
-      const imgWidth = img.naturalWidth;
-      const imgHeight = img.naturalHeight;
-
-      // Match internal canvas buffer exactly to native raw uncompressed dimensions
-      if (heroCanvas.width !== imgWidth || heroCanvas.height !== imgHeight) {
-        heroCanvas.width = imgWidth;
-        heroCanvas.height = imgHeight;
-      }
-
-      // 1:1 direct pixel blit with zero downsampling and zero loss of clarity
-      ctx.drawImage(img, 0, 0, imgWidth, imgHeight);
-    }
-
-    // High-performance image loader with GPU decode
-    function loadSingleFrame(index, mobileMode = isMobile, callback) {
-      const images = mobileMode ? mobileImages : desktopImages;
-      const key = `${mobileMode ? 'm' : 'd'}_${index}`;
-
-      if (images[index] && images[index].complete && images[index].naturalWidth > 0) {
-        if (callback) callback(images[index]);
-        return images[index];
-      }
-
-      if (callback) {
-        if (!pendingCallbacks[key]) pendingCallbacks[key] = [];
-        pendingCallbacks[key].push(callback);
-      }
-
-      if (images[index]) {
-        return images[index];
-      }
-
-      const img = new Image();
-      const url = getHeroFrameUrl(index, mobileMode);
-      img.src = url;
-
-      function onFrameLoaded(loadedImg) {
-        images[index] = loadedImg;
-        const cbs = pendingCallbacks[key];
-        if (cbs && cbs.length > 0) {
-          delete pendingCallbacks[key];
-          cbs.forEach(cb => cb(loadedImg));
-        }
-        if (Math.round(currentFrame) === index || lastSuccessfullyDrawnFrame === -1) {
-          renderHeroFrame(Math.round(currentFrame));
-        }
-      }
-
-      img.onload = () => {
-        if (typeof img.decode === 'function') {
-          img.decode().then(() => onFrameLoaded(img)).catch(() => onFrameLoaded(img));
-        } else {
-          onFrameLoaded(img);
-        }
-      };
-
-      img.onerror = () => {
-        if (mobileMode) {
-          const fallbackImg = new Image();
-          fallbackImg.src = `public/images/ezgif-frame-${String(index + 1).padStart(3, '0')}.png`;
-          fallbackImg.onload = () => onFrameLoaded(fallbackImg);
-        }
-      };
-
-      images[index] = img;
-      return img;
-    }
-
-    // 1. Immediately load initial keyframes for instant crystal-clear rendering
-    loadSingleFrame(0, isMobile, () => renderHeroFrame(0));
-    loadSingleFrame(1, isMobile);
-
-    // 2. High-performance prioritized frame preloading
-    function preloadFrames(mobileMode = isMobile) {
-      const total = mobileMode ? MOBILE_TOTAL_FRAMES : DESKTOP_TOTAL_FRAMES;
-      const images = mobileMode ? mobileImages : desktopImages;
-
-      // Priority A: Load first 25 frames immediately for crisp initial scroll
-      for (let i = 0; i < Math.min(25, total); i++) {
-        loadSingleFrame(i, mobileMode);
-      }
-
-      // Priority B: Load keyframes across entire sequence (every 2nd frame)
-      for (let i = 26; i < total; i += 2) {
-        loadSingleFrame(i, mobileMode);
-      }
-
-      // Priority C: Stream all remaining frames progressively
-      let remainingIdx = 0;
-      function streamBatch() {
-        const batchEnd = Math.min(remainingIdx + 10, total);
-        for (; remainingIdx < batchEnd; remainingIdx++) {
-          if (!images[remainingIdx]) {
-            loadSingleFrame(remainingIdx, mobileMode);
-          }
-        }
-        if (remainingIdx < total) {
-          if (typeof window.requestIdleCallback === 'function') {
-            window.requestIdleCallback(streamBatch, { timeout: 80 });
-          } else {
-            setTimeout(streamBatch, 25);
-          }
-        }
-      }
-
-      if (typeof window.requestIdleCallback === 'function') {
-        window.requestIdleCallback(streamBatch, { timeout: 80 });
-      } else {
-        setTimeout(streamBatch, 40);
-      }
-    }
-
-    preloadFrames(isMobile);
-
-    // Responsive Canvas Resize & Mode Switch Handling
-    function handleResizeOrOrientation() {
-      const newIsMobile = checkIsMobile();
-      if (newIsMobile !== isMobile) {
-        isMobile = newIsMobile;
-        preloadFrames(isMobile);
-      }
-      updateCanvasDimensions();
-      renderHeroFrame(Math.round(currentFrame));
-    }
-
-    window.addEventListener('resize', handleResizeOrOrientation, { passive: true });
-    window.addEventListener('orientationchange', () => {
-      setTimeout(handleResizeOrOrientation, 100);
-    }, { passive: true });
-
-    // Calculate current scroll progress and target frame
+  if (heroTrack) {
     function updateScrollProgress() {
       const rect = heroTrack.getBoundingClientRect();
       const maxScroll = heroTrack.offsetHeight - window.innerHeight;
 
       if (maxScroll > 0) {
         const progress = Math.max(0, Math.min(1, -rect.top / maxScroll));
-        const totalFrames = getTotalFrames();
-        targetFrame = progress * (totalFrames - 1);
 
         // Hide or show scroll cue based on scroll progress
         if (scrollCue) {
@@ -429,7 +199,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Reveal luxury brand text and overlay elements towards end of scroll
-        const endScrollOverlay = document.getElementById('end-scroll-overlay');
         if (endScrollOverlay) {
           if (progress >= 0.72) {
             endScrollOverlay.classList.add('is-visible');
@@ -440,12 +209,11 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // Direct scroll and touch listener for instant mobile responsiveness
+    // Direct scroll and touch listener for instant responsiveness
     window.addEventListener('scroll', updateScrollProgress, { passive: true });
     window.addEventListener('touchmove', updateScrollProgress, { passive: true });
 
     // Bridge Touch and Wheel on End Overlay to Window Scroll for Seamless Backward Scrubbing
-    const endScrollOverlay = document.getElementById('end-scroll-overlay');
     if (endScrollOverlay) {
       let lastTouchY = 0;
 
@@ -477,29 +245,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }, { passive: true });
     }
 
-    // Smooth Continuous Scrubbing Animation Loop
-    function scrubLoop() {
-      updateScrollProgress();
-
-      // Silky smooth inertia interpolation (18% per frame)
-      const diff = targetFrame - currentFrame;
-      if (Math.abs(diff) > 0.005) {
-        currentFrame += diff * 0.18;
-        const rounded = Math.round(currentFrame);
-        if (rounded !== lastRenderedFrame) {
-          renderHeroFrame(rounded);
-          lastRenderedFrame = rounded;
-        }
-      } else if (Math.round(targetFrame) !== lastRenderedFrame) {
-        currentFrame = targetFrame;
-        renderHeroFrame(Math.round(currentFrame));
-        lastRenderedFrame = Math.round(currentFrame);
-      }
-
-      requestAnimationFrame(scrubLoop);
-    }
-
-    requestAnimationFrame(scrubLoop);
+    // Initial check
+    updateScrollProgress();
   }
 
   // ======================================================================
