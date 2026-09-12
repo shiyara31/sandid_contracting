@@ -3047,11 +3047,10 @@ footer.site-footer {
    HOME PAGE SCROLL-BASED CANVAS HERO ANIMATION
    ========================================================================== */
 .home-page-body {
-  overflow-x: clip;
-  overflow-y: visible;
   min-height: 100vh;
   min-height: 100dvh;
   margin: 0;
+  padding: 0;
   background-color: #0b0b0b;
 }
 
@@ -3901,23 +3900,26 @@ footer.site-footer {
     padding-top: 1.25rem;
   }
 
-  /* Mobile Hero Fixed Viewport Frame */
+  /* Mobile Hero Viewport Frame */
   .hero-scroll-track {
-    height: 360vh;
-    height: 360dvh;
+    position: relative;
+    width: 100%;
+    height: 380vh;
+    height: 380dvh;
+    background-color: #0b0b0b;
   }
 
   .hero-sticky-frame {
-    position: fixed;
+    position: -webkit-sticky;
+    position: sticky;
     top: 0;
     left: 0;
     width: 100%;
-    height: 100%;
     height: 100vh;
     height: 100dvh;
     overflow: hidden;
-    z-index: 1;
     touch-action: pan-y;
+    background-color: #0b0b0b;
   }
 
   /* End-of-Scroll Overlay (index.html) - Full-Page Rich Typography with Zero Middle Gap */
