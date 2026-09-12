@@ -191,26 +191,29 @@ document.addEventListener('DOMContentLoaded', () => {
         this.scrollCue = options.scrollCue;
         this.endScrollOverlay = options.endScrollOverlay;
 
-        // Desktop Configuration
+        // Desktop Configuration (3840x2160, 264 frames)
         this.desktopConfig = {
+          name: 'desktop',
           folder: 'public/images/',
           prefix: 'frame-',
           ext: '.jpg',
           digits: 4,
           totalFrames: 264,
-          nativeWidth: 3840,
-          nativeHeight: 2160
+          defaultWidth: 3840,
+          defaultHeight: 2160
         };
 
-        // Mobile Configuration (Dedicated sequence from mobile view folder)
+        // Mobile Configuration (1080x1920, 201 frames)
         this.mobileConfig = {
-          folder: 'mobile%20view/images/',
+          name: 'mobile',
+          folder: 'mobile view/images/',
+          candidateFolders: ['mobile view/images/', 'mobile%20view/images/', 'public/images/mobile/'],
           prefix: 'frame-',
           ext: '.jpg',
           digits: 4,
           totalFrames: 201,
-          nativeWidth: 1080,
-          nativeHeight: 1920
+          defaultWidth: 1080,
+          defaultHeight: 1920
         };
 
         this.hasMobileFrames = false;
@@ -228,6 +231,10 @@ document.addEventListener('DOMContentLoaded', () => {
         this.init();
       }
 
+      checkIsMobile() {
+        return window.innerWidth <= 768 || (window.innerWidth <= 992 && window.innerHeight > window.innerWidth);
+      }
+
       async init() {
         this.setupCanvasDimensions();
         await this.detectMobileAvailability();
@@ -243,34 +250,34 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       }
 
-      checkIsMobile() {
-        return window.innerWidth <= 768 || window.matchMedia('(max-width: 768px)').matches;
-      }
-
-      // Check if mobile frames exist in mobile view/images/
+      // Check if mobile frames exist in mobile view folder
       detectMobileAvailability() {
-        return new Promise((resolve) => {
-          const testImg = new Image();
-          const testUrl = `${this.mobileConfig.folder}${this.mobileConfig.prefix}0001${this.mobileConfig.ext}`;
-          testImg.onload = () => {
-            this.hasMobileFrames = true;
-            resolve(true);
-          };
-          testImg.onerror = () => {
-            // Also test unencoded space path as fallback if needed
-            const fallbackImg = new Image();
-            fallbackImg.onload = () => {
-              this.mobileConfig.folder = 'mobile view/images/';
-              this.hasMobileFrames = true;
+        const tryFolder = (folder) => {
+          return new Promise((resolve) => {
+            const testImg = new Image();
+            const testUrl = `${folder}${this.mobileConfig.prefix}0001${this.mobileConfig.ext}`;
+            testImg.onload = () => {
+              this.mobileConfig.folder = folder;
               resolve(true);
             };
-            fallbackImg.onerror = () => {
-              this.hasMobileFrames = false;
+            testImg.onerror = () => {
               resolve(false);
             };
-            fallbackImg.src = `mobile view/images/${this.mobileConfig.prefix}0001${this.mobileConfig.ext}`;
-          };
-          testImg.src = testUrl;
+            testImg.src = testUrl;
+          });
+        };
+
+        return new Promise(async (resolve) => {
+          for (const folder of this.mobileConfig.candidateFolders) {
+            const found = await tryFolder(folder);
+            if (found) {
+              this.hasMobileFrames = true;
+              resolve(true);
+              return;
+            }
+          }
+          this.hasMobileFrames = false;
+          resolve(false);
         });
       }
 
@@ -298,11 +305,12 @@ document.addEventListener('DOMContentLoaded', () => {
           };
         }
         this.bgPreloadIndex = 0;
+        this.lastRenderedIndex = -1;
       }
 
       setupCanvasDimensions() {
         const rect = this.canvas.getBoundingClientRect();
-        const dpr = Math.min(window.devicePixelRatio || 1, 2); // Cap at 2x for sharp retina rendering with high 60fps performance
+        const dpr = Math.min(window.devicePixelRatio || 1, 2); // Cap at 2x for retina sharpness without excessive memory
         const width = rect.width || window.innerWidth;
         const height = rect.height || window.innerHeight;
 
@@ -363,11 +371,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Preload a sliding buffer around the current frame
       preloadBuffer(centerIndex) {
-        const bufferRadius = 12;
+        const bufferRadius = this.isMobile ? 10 : 12;
         const start = Math.max(0, centerIndex - bufferRadius);
         const end = Math.min(this.activeConfig.totalFrames - 1, centerIndex + bufferRadius);
 
-        // Prioritize frames directly in front of scroll direction
+        // Prioritize frames directly around current scroll position
         for (let offset = 0; offset <= bufferRadius; offset++) {
           if (centerIndex + offset <= end) this.loadFrame(centerIndex + offset);
           if (centerIndex - offset >= start) this.loadFrame(centerIndex - offset);
@@ -380,7 +388,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         this.bgPreloadTimer = setInterval(() => {
           let count = 0;
-          while (this.bgPreloadIndex < this.activeConfig.totalFrames && count < 2) {
+          const batchSize = this.isMobile ? 1 : 2;
+          while (this.bgPreloadIndex < this.activeConfig.totalFrames && count < batchSize) {
             if (!this.frames[this.bgPreloadIndex].loaded && !this.frames[this.bgPreloadIndex].loading) {
               this.loadFrame(this.bgPreloadIndex);
               count++;
@@ -392,7 +401,7 @@ document.addEventListener('DOMContentLoaded', () => {
             clearInterval(this.bgPreloadTimer);
             this.bgPreloadTimer = null;
           }
-        }, 60);
+        }, 70);
       }
 
       drawFrame(index) {
@@ -425,10 +434,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const img = frameToDraw.img;
         const cw = this.canvas.width;
         const ch = this.canvas.height;
-        const iw = img.naturalWidth || this.activeConfig.nativeWidth || 3840;
-        const ih = img.naturalHeight || this.activeConfig.nativeHeight || 2160;
+        const iw = img.naturalWidth || this.activeConfig.defaultWidth;
+        const ih = img.naturalHeight || this.activeConfig.defaultHeight;
 
-        // Cover fit without distortion
+        // Proportional cover-fit centered without distortion
         const scale = Math.max(cw / iw, ch / ih);
         const dw = iw * scale;
         const dh = ih * scale;
@@ -464,7 +473,7 @@ document.addEventListener('DOMContentLoaded', () => {
             Math.max(0, Math.floor(this.currentProgress * (this.activeConfig.totalFrames - 1)))
           );
 
-          // Priority load current frame and nearby window
+          // Priority load current frame and nearby buffer
           this.loadFrame(this.targetIndex, true);
           this.preloadBuffer(this.targetIndex);
           this.requestRender();
@@ -491,11 +500,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
       handleResize() {
         this.setupCanvasDimensions();
-        const wasMobile = this.isMobile;
+        const prevConfigName = this.activeConfig.name;
         this.selectActiveConfiguration();
 
-        // If switched breakpoint between desktop and mobile with available frames
-        if (wasMobile !== this.isMobile && this.hasMobileFrames) {
+        // If switched between desktop and mobile sequence
+        if (prevConfigName !== this.activeConfig.name) {
           if (this.bgPreloadTimer) clearInterval(this.bgPreloadTimer);
           this.initFrameCache();
           this.loadFrame(0, true, () => {
