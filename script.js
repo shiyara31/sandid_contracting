@@ -175,78 +175,375 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ======================================================================
-  // Hero Scroll Track & End Overlay Progress Handling
+  // High-Performance Scroll-Driven Frame Animation Engine
   // ======================================================================
   const heroTrack = document.getElementById('hero-scroll-track');
+  const heroCanvas = document.getElementById('hero-scroll-canvas');
   const scrollCue = document.getElementById('scroll-cue');
   const endScrollOverlay = document.getElementById('end-scroll-overlay');
 
-  if (heroTrack) {
-    function updateScrollProgress() {
-      const rect = heroTrack.getBoundingClientRect();
-      const maxScroll = heroTrack.offsetHeight - window.innerHeight;
+  if (heroTrack && heroCanvas) {
+    class ScrollFramePlayer {
+      constructor(options) {
+        this.track = options.track;
+        this.canvas = options.canvas;
+        this.ctx = this.canvas.getContext('2d', { alpha: false });
+        this.scrollCue = options.scrollCue;
+        this.endScrollOverlay = options.endScrollOverlay;
 
-      if (maxScroll > 0) {
-        const progress = Math.max(0, Math.min(1, -rect.top / maxScroll));
+        // Desktop Configuration
+        this.desktopConfig = {
+          folder: 'public/images/',
+          prefix: 'frame-',
+          ext: '.jpg',
+          digits: 4,
+          totalFrames: 264
+        };
 
-        // Hide or show scroll cue based on scroll progress
-        if (scrollCue) {
-          if (progress > 0.02) {
-            scrollCue.classList.add('is-hidden');
-          } else {
-            scrollCue.classList.remove('is-hidden');
+        // Mobile Configuration (Separate sequence)
+        this.mobileConfig = {
+          folder: 'public/images/mobile/',
+          prefix: 'frame-',
+          ext: '.jpg',
+          digits: 4,
+          totalFrames: 264
+        };
+
+        this.hasMobileFrames = false;
+        this.isMobile = window.innerWidth <= 768;
+        this.activeConfig = this.desktopConfig;
+
+        this.frames = [];
+        this.lastRenderedIndex = -1;
+        this.currentProgress = 0;
+        this.targetIndex = 0;
+        this.ticking = false;
+        this.bgPreloadTimer = null;
+        this.bgPreloadIndex = 0;
+
+        this.init();
+      }
+
+      async init() {
+        this.setupCanvasDimensions();
+        await this.detectMobileAvailability();
+        this.selectActiveConfiguration();
+        this.initFrameCache();
+        this.bindEvents();
+        
+        // Load and paint first frame immediately
+        this.loadFrame(0, true, () => {
+          this.drawFrame(0);
+          this.updateScroll();
+          this.startBackgroundPreload();
+        });
+      }
+
+      // Check if mobile frames exist in public/images/mobile/
+      detectMobileAvailability() {
+        return new Promise((resolve) => {
+          const testImg = new Image();
+          const testUrl = `${this.mobileConfig.folder}${this.mobileConfig.prefix}0001${this.mobileConfig.ext}`;
+          testImg.onload = () => {
+            this.hasMobileFrames = true;
+            resolve(true);
+          };
+          testImg.onerror = () => {
+            this.hasMobileFrames = false;
+            resolve(false);
+          };
+          testImg.src = testUrl;
+        });
+      }
+
+      selectActiveConfiguration() {
+        this.isMobile = window.innerWidth <= 768;
+        if (this.isMobile && this.hasMobileFrames) {
+          this.activeConfig = this.mobileConfig;
+        } else {
+          this.activeConfig = this.desktopConfig;
+        }
+      }
+
+      getFrameUrl(index) {
+        const frameNumber = String(index + 1).padStart(this.activeConfig.digits, '0');
+        return `${this.activeConfig.folder}${this.activeConfig.prefix}${frameNumber}${this.activeConfig.ext}`;
+      }
+
+      initFrameCache() {
+        this.frames = new Array(this.activeConfig.totalFrames);
+        for (let i = 0; i < this.activeConfig.totalFrames; i++) {
+          this.frames[i] = {
+            img: null,
+            loaded: false,
+            loading: false
+          };
+        }
+        this.bgPreloadIndex = 0;
+      }
+
+      setupCanvasDimensions() {
+        const rect = this.canvas.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 2); // Cap at 2x for sharp retina rendering with high 60fps performance
+        const width = rect.width || window.innerWidth;
+        const height = rect.height || window.innerHeight;
+
+        this.canvas.width = Math.round(width * dpr);
+        this.canvas.height = Math.round(height * dpr);
+
+        if (this.ctx) {
+          this.ctx.imageSmoothingEnabled = true;
+          this.ctx.imageSmoothingQuality = 'high';
+        }
+      }
+
+      loadFrame(index, highPriority = false, callback = null) {
+        if (index < 0 || index >= this.activeConfig.totalFrames) return;
+        const item = this.frames[index];
+        if (!item) return;
+
+        if (item.loaded) {
+          if (callback) callback(item.img);
+          return;
+        }
+
+        if (item.loading) {
+          if (callback) {
+            const prevOnload = item.img.onload;
+            item.img.onload = () => {
+              if (prevOnload) prevOnload();
+              callback(item.img);
+            };
+          }
+          return;
+        }
+
+        item.loading = true;
+        const img = new Image();
+        img.decoding = 'async';
+
+        img.onload = () => {
+          item.loaded = true;
+          item.loading = false;
+          item.img = img;
+          
+          if (callback) callback(img);
+
+          // If this is the current target frame or closer than what was rendered, redraw
+          if (index === this.targetIndex || Math.abs(index - this.targetIndex) < Math.abs(this.lastRenderedIndex - this.targetIndex)) {
+            this.requestRender();
+          }
+        };
+
+        img.onerror = () => {
+          item.loading = false;
+        };
+
+        img.src = this.getFrameUrl(index);
+        item.img = img;
+      }
+
+      // Preload a sliding buffer around the current frame
+      preloadBuffer(centerIndex) {
+        const bufferRadius = 12;
+        const start = Math.max(0, centerIndex - bufferRadius);
+        const end = Math.min(this.activeConfig.totalFrames - 1, centerIndex + bufferRadius);
+
+        // Prioritize frames directly in front of scroll direction
+        for (let offset = 0; offset <= bufferRadius; offset++) {
+          if (centerIndex + offset <= end) this.loadFrame(centerIndex + offset);
+          if (centerIndex - offset >= start) this.loadFrame(centerIndex - offset);
+        }
+      }
+
+      // Background progressive preloader for remaining frames
+      startBackgroundPreload() {
+        if (this.bgPreloadTimer) clearInterval(this.bgPreloadTimer);
+
+        this.bgPreloadTimer = setInterval(() => {
+          let count = 0;
+          while (this.bgPreloadIndex < this.activeConfig.totalFrames && count < 2) {
+            if (!this.frames[this.bgPreloadIndex].loaded && !this.frames[this.bgPreloadIndex].loading) {
+              this.loadFrame(this.bgPreloadIndex);
+              count++;
+            }
+            this.bgPreloadIndex++;
+          }
+
+          if (this.bgPreloadIndex >= this.activeConfig.totalFrames) {
+            clearInterval(this.bgPreloadTimer);
+            this.bgPreloadTimer = null;
+          }
+        }, 60);
+      }
+
+      drawFrame(index) {
+        if (!this.ctx || index < 0 || index >= this.activeConfig.totalFrames) return;
+
+        let frameToDraw = this.frames[index];
+
+        // If target frame is not loaded yet, find nearest loaded frame to eliminate flicker
+        if (!frameToDraw || !frameToDraw.loaded) {
+          let nearestIndex = -1;
+          let minDistance = Infinity;
+
+          for (let i = 0; i < this.activeConfig.totalFrames; i++) {
+            if (this.frames[i] && this.frames[i].loaded) {
+              const dist = Math.abs(i - index);
+              if (dist < minDistance) {
+                minDistance = dist;
+                nearestIndex = i;
+              }
+            }
+          }
+
+          if (nearestIndex !== -1) {
+            frameToDraw = this.frames[nearestIndex];
           }
         }
 
-        // Reveal luxury brand text and overlay elements towards end of scroll
-        if (endScrollOverlay) {
-          if (progress >= 0.72) {
-            endScrollOverlay.classList.add('is-visible');
-          } else {
-            endScrollOverlay.classList.remove('is-visible');
+        if (!frameToDraw || !frameToDraw.loaded || !frameToDraw.img) return;
+
+        const img = frameToDraw.img;
+        const cw = this.canvas.width;
+        const ch = this.canvas.height;
+        const iw = img.naturalWidth || 3840;
+        const ih = img.naturalHeight || 2160;
+
+        // Cover fit without distortion
+        const scale = Math.max(cw / iw, ch / ih);
+        const dw = iw * scale;
+        const dh = ih * scale;
+        const dx = (cw - dw) * 0.5;
+        const dy = (ch - dh) * 0.5;
+
+        this.ctx.clearRect(0, 0, cw, ch);
+        this.ctx.drawImage(img, dx, dy, dw, dh);
+        this.lastRenderedIndex = index;
+      }
+
+      requestRender() {
+        if (!this.ticking) {
+          requestAnimationFrame(() => {
+            this.drawFrame(this.targetIndex);
+            this.ticking = false;
+          });
+          this.ticking = true;
+        }
+      }
+
+      updateScroll() {
+        const rect = this.track.getBoundingClientRect();
+        const maxScroll = this.track.offsetHeight - window.innerHeight;
+
+        if (maxScroll > 0) {
+          const rawProgress = -rect.top / maxScroll;
+          this.currentProgress = Math.max(0, Math.min(1, rawProgress));
+
+          // Compute target frame index (0 to totalFrames - 1)
+          this.targetIndex = Math.min(
+            this.activeConfig.totalFrames - 1,
+            Math.max(0, Math.floor(this.currentProgress * (this.activeConfig.totalFrames - 1)))
+          );
+
+          // Priority load current frame and nearby window
+          this.loadFrame(this.targetIndex, true);
+          this.preloadBuffer(this.targetIndex);
+          this.requestRender();
+
+          // Coordinate Scroll Cue visibility
+          if (this.scrollCue) {
+            if (this.currentProgress > 0.02) {
+              this.scrollCue.classList.add('is-hidden');
+            } else {
+              this.scrollCue.classList.remove('is-hidden');
+            }
           }
+
+          // Coordinate End Overlay luxury reveal
+          if (this.endScrollOverlay) {
+            if (this.currentProgress >= 0.72) {
+              this.endScrollOverlay.classList.add('is-visible');
+            } else {
+              this.endScrollOverlay.classList.remove('is-visible');
+            }
+          }
+        }
+      }
+
+      handleResize() {
+        this.setupCanvasDimensions();
+        const wasMobile = this.isMobile;
+        this.selectActiveConfiguration();
+
+        // If switched breakpoint between desktop and mobile with available frames
+        if (wasMobile !== this.isMobile && this.hasMobileFrames) {
+          if (this.bgPreloadTimer) clearInterval(this.bgPreloadTimer);
+          this.initFrameCache();
+          this.loadFrame(0, true, () => {
+            this.drawFrame(this.targetIndex);
+            this.startBackgroundPreload();
+          });
+        } else {
+          this.drawFrame(this.targetIndex);
+        }
+      }
+
+      bindEvents() {
+        const onScroll = () => this.updateScroll();
+        window.addEventListener('scroll', onScroll, { passive: true });
+        window.addEventListener('touchmove', onScroll, { passive: true });
+
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+          clearTimeout(resizeTimeout);
+          resizeTimeout = setTimeout(() => this.handleResize(), 150);
+        }, { passive: true });
+
+        window.addEventListener('orientationchange', () => {
+          setTimeout(() => this.handleResize(), 200);
+        }, { passive: true });
+
+        // Bridge touch and wheel on End Overlay to Window Scroll for seamless backward scrubbing
+        if (this.endScrollOverlay) {
+          let lastTouchY = 0;
+
+          this.endScrollOverlay.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+              lastTouchY = e.touches[0].clientY;
+            }
+          }, { passive: true });
+
+          this.endScrollOverlay.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 1) {
+              const currentY = e.touches[0].clientY;
+              const deltaY = currentY - lastTouchY;
+              lastTouchY = currentY;
+
+              if (deltaY > 0 && this.endScrollOverlay.scrollTop <= 1) {
+                window.scrollBy({ top: -deltaY * 1.6, behavior: 'auto' });
+                this.updateScroll();
+              }
+            }
+          }, { passive: true });
+
+          this.endScrollOverlay.addEventListener('wheel', (e) => {
+            if (e.deltaY < 0 && this.endScrollOverlay.scrollTop <= 1) {
+              window.scrollBy({ top: e.deltaY, behavior: 'auto' });
+              this.updateScroll();
+            }
+          }, { passive: true });
         }
       }
     }
 
-    // Direct scroll and touch listener for instant responsiveness
-    window.addEventListener('scroll', updateScrollProgress, { passive: true });
-    window.addEventListener('touchmove', updateScrollProgress, { passive: true });
-
-    // Bridge Touch and Wheel on End Overlay to Window Scroll for Seamless Backward Scrubbing
-    if (endScrollOverlay) {
-      let lastTouchY = 0;
-
-      endScrollOverlay.addEventListener('touchstart', (e) => {
-        if (e.touches.length === 1) {
-          lastTouchY = e.touches[0].clientY;
-        }
-      }, { passive: true });
-
-      endScrollOverlay.addEventListener('touchmove', (e) => {
-        if (e.touches.length === 1) {
-          const currentY = e.touches[0].clientY;
-          const deltaY = currentY - lastTouchY;
-          lastTouchY = currentY;
-
-          // If pulling down at top of overlay, scroll the window backwards
-          if (deltaY > 0 && endScrollOverlay.scrollTop <= 1) {
-            window.scrollBy({ top: -deltaY * 1.6, behavior: 'auto' });
-            updateScrollProgress();
-          }
-        }
-      }, { passive: true });
-
-      endScrollOverlay.addEventListener('wheel', (e) => {
-        if (e.deltaY < 0 && endScrollOverlay.scrollTop <= 1) {
-          window.scrollBy({ top: e.deltaY, behavior: 'auto' });
-          updateScrollProgress();
-        }
-      }, { passive: true });
-    }
-
-    // Initial check
-    updateScrollProgress();
+    // Instantiate hero scroll frame animation engine
+    window.heroScrollPlayer = new ScrollFramePlayer({
+      track: heroTrack,
+      canvas: heroCanvas,
+      scrollCue: scrollCue,
+      endScrollOverlay: endScrollOverlay
+    });
   }
 
   // ======================================================================
