@@ -222,9 +222,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         this.frames = [];
         this.lastRenderedIndex = -1;
-        this.currentProgress = 0;
-        this.targetIndex = 0;
-        this.ticking = false;
+        this.targetProgress = 0;
+        this.smoothProgress = 0;
         this.bgPreloadTimer = null;
         this.bgPreloadIndex = 0;
 
@@ -250,6 +249,9 @@ document.addEventListener('DOMContentLoaded', () => {
           this.updateScroll();
           this.startBackgroundPreload();
         });
+
+        // Start 60fps smooth animation interpolation loop
+        this.startSmoothRenderLoop();
 
         // Verify mobile folder in background to confirm candidate
         this.detectMobileAvailability();
@@ -313,10 +315,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       setupCanvasDimensions() {
-        const rect = this.canvas.getBoundingClientRect();
         const dpr = Math.min(window.devicePixelRatio || 1, 2); // Cap at 2x for retina crispness without memory bloat
-        const width = rect.width || window.innerWidth;
-        const height = rect.height || window.innerHeight;
+        const width = window.innerWidth || document.documentElement.clientWidth;
+        const height = window.innerHeight || document.documentElement.clientHeight;
 
         const targetW = Math.round(width * dpr);
         const targetH = Math.round(height * dpr);
@@ -364,9 +365,13 @@ document.addEventListener('DOMContentLoaded', () => {
           
           if (callback) callback(img);
 
-          // If this is the current target frame or closer than what was rendered, redraw
-          if (index === this.targetIndex || Math.abs(index - this.targetIndex) < Math.abs(this.lastRenderedIndex - this.targetIndex)) {
-            this.requestRender();
+          // If this frame was just loaded, draw it if needed
+          const currentTarget = Math.min(
+            this.activeConfig.totalFrames - 1,
+            Math.max(0, Math.round(this.smoothProgress * (this.activeConfig.totalFrames - 1)))
+          );
+          if (index === currentTarget) {
+            this.drawFrame(currentTarget);
           }
         };
 
@@ -392,7 +397,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // On mobile, gently manage memory if buffer grows too large
         if (this.isMobile) {
-          const maxDistance = 40;
+          const maxDistance = 45;
           for (let i = 1; i < this.activeConfig.totalFrames; i++) {
             if (Math.abs(i - centerIndex) > maxDistance && this.frames[i] && this.frames[i].loaded) {
               this.frames[i].img = null;
@@ -458,8 +463,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const iw = img.naturalWidth || this.activeConfig.defaultWidth;
         const ih = img.naturalHeight || this.activeConfig.defaultHeight;
 
-        // Proportional cover-fit centered without distortion
-        const scale = Math.max(cw / iw, ch / ih);
+        // Proportional cover-fit centered without distortion (slight overfill to prevent subpixel edge lines)
+        const baseScale = Math.max(cw / iw, ch / ih);
+        const scale = this.isMobile ? baseScale * 1.01 : baseScale;
         const dw = iw * scale;
         const dh = ih * scale;
         const dx = (cw - dw) * 0.5;
@@ -470,14 +476,36 @@ document.addEventListener('DOMContentLoaded', () => {
         this.lastRenderedIndex = index;
       }
 
-      requestRender() {
-        if (!this.ticking) {
-          requestAnimationFrame(() => {
-            this.drawFrame(this.targetIndex);
-            this.ticking = false;
-          });
-          this.ticking = true;
-        }
+      startSmoothRenderLoop() {
+        let lastFrameDrawn = -1;
+
+        const tick = () => {
+          // Smoothly interpolate towards target scroll position (buttery smooth on touch)
+          const lerpFactor = this.isMobile ? 0.28 : 0.4;
+          const diff = this.targetProgress - this.smoothProgress;
+
+          if (Math.abs(diff) > 0.0001) {
+            this.smoothProgress += diff * lerpFactor;
+          } else {
+            this.smoothProgress = this.targetProgress;
+          }
+
+          const currentTarget = Math.min(
+            this.activeConfig.totalFrames - 1,
+            Math.max(0, Math.round(this.smoothProgress * (this.activeConfig.totalFrames - 1)))
+          );
+
+          if (currentTarget !== lastFrameDrawn) {
+            this.loadFrame(currentTarget, true);
+            this.preloadBuffer(currentTarget);
+            this.drawFrame(currentTarget);
+            lastFrameDrawn = currentTarget;
+          }
+
+          requestAnimationFrame(tick);
+        };
+
+        requestAnimationFrame(tick);
       }
 
       updateScroll() {
@@ -486,22 +514,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (maxScroll > 0) {
           const rawProgress = -rect.top / maxScroll;
-          this.currentProgress = Math.max(0, Math.min(1, rawProgress));
-
-          // Compute target frame index (0 to totalFrames - 1)
-          this.targetIndex = Math.min(
-            this.activeConfig.totalFrames - 1,
-            Math.max(0, Math.round(this.currentProgress * (this.activeConfig.totalFrames - 1)))
-          );
-
-          // Priority load current frame and nearby buffer
-          this.loadFrame(this.targetIndex, true);
-          this.preloadBuffer(this.targetIndex);
-          this.requestRender();
+          this.targetProgress = Math.max(0, Math.min(1, rawProgress));
 
           // Coordinate Scroll Cue visibility
           if (this.scrollCue) {
-            if (this.currentProgress > 0.02) {
+            if (this.targetProgress > 0.02) {
               this.scrollCue.classList.add('is-hidden');
             } else {
               this.scrollCue.classList.remove('is-hidden');
@@ -510,7 +527,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           // Coordinate End Overlay luxury reveal
           if (this.endScrollOverlay) {
-            if (this.currentProgress >= 0.72) {
+            if (this.targetProgress >= 0.72) {
               this.endScrollOverlay.classList.add('is-visible');
             } else {
               this.endScrollOverlay.classList.remove('is-visible');
