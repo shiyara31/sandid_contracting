@@ -3071,7 +3071,6 @@ footer.site-footer {
   width: 100%;
   height: 100vh;
   height: 100dvh;
-  height: 100svh;
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -3902,14 +3901,37 @@ footer.site-footer {
     padding-top: 1.25rem;
   }
 
+  /* Mobile Hero Fixed Viewport Frame */
+  .hero-scroll-track {
+    height: 360vh;
+    height: 360dvh;
+  }
+
+  .hero-sticky-frame {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    z-index: 1;
+    touch-action: pan-y;
+  }
+
   /* End-of-Scroll Overlay (index.html) - Full-Page Rich Typography with Zero Middle Gap */
   .end-scroll-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    height: 100vh;
+    height: 100dvh;
     padding: 2.2rem 1.4rem 4.5rem;
     flex-direction: column;
     justify-content: flex-start;
-    height: 100vh;
-    height: 100dvh;
-    height: 100svh;
     overflow-y: hidden;
     touch-action: pan-y;
   }

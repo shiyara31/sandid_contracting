@@ -215,8 +215,8 @@ document.addEventListener('DOMContentLoaded', () => {
           nativeWidth: 1080,
           nativeHeight: 1920,
           bufferAhead: 12,
-          bufferBehind: 5,
-          maxDpr: 2.5
+          bufferBehind: 6,
+          maxDpr: 2
         };
 
         this.hasMobileFrames = false;
@@ -224,29 +224,33 @@ document.addEventListener('DOMContentLoaded', () => {
         this.activeConfig = this.desktopConfig;
 
         this.frames = [];
-        this.lastRenderedIndex = -1;
-        this.currentProgress = 0;
+        this.renderedFrameIndex = -1;
         this.targetIndex = 0;
-        this.scrollPending = false;
-        this.bgPreloadTimer = null;
-        this.bgPreloadIndex = 0;
+        
+        this.targetProgress = 0;
+        this.smoothProgress = 0;
+        this.maxScroll = 1;
+        this.isTicking = false;
+        
         this.activeConcurrentLoads = 0;
         this.maxConcurrentLoads = 4;
+        this.bgPreloadIndex = 0;
+        this.bgPreloadTimer = null;
 
         this.init();
       }
 
       async init() {
-        this.setupCanvasDimensions();
         await this.detectMobileAvailability();
         this.selectActiveConfiguration();
         this.initFrameCache();
+        this.measure();
         this.bindEvents();
         
         // Priority 1: Load and paint first frame instantly
         this.loadFrame(0, true, () => {
           this.drawFrame(0);
-          this.requestScrollUpdate();
+          this.onScroll();
           // Priority 2: Preload initial scroll buffer
           this.preloadBuffer(0);
           // Priority 3: Progressively preload remaining frames in background
@@ -268,7 +272,6 @@ document.addEventListener('DOMContentLoaded', () => {
             resolve(true);
           };
           testImg.onerror = () => {
-            // Also test unencoded space path as fallback if needed
             const fallbackImg = new Image();
             fallbackImg.onload = () => {
               this.mobileConfig.folder = 'mobile view/images/';
@@ -311,12 +314,20 @@ document.addEventListener('DOMContentLoaded', () => {
         this.bgPreloadIndex = 0;
       }
 
+      measure() {
+        const windowHeight = window.innerHeight || document.documentElement.clientHeight || 800;
+        const trackHeight = this.track ? this.track.offsetHeight : (windowHeight * 4);
+        this.maxScroll = Math.max(1, trackHeight - windowHeight);
+        this.setupCanvasDimensions();
+      }
+
       setupCanvasDimensions() {
-        const rect = this.canvas.getBoundingClientRect();
-        const maxDpr = this.activeConfig ? this.activeConfig.maxDpr : (this.isMobile ? 2.5 : 2);
+        if (!this.canvas) return;
+        const maxDpr = this.activeConfig ? this.activeConfig.maxDpr : 2;
         const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
-        const width = rect.width || window.innerWidth;
-        const height = rect.height || window.innerHeight;
+        
+        const width = this.canvas.clientWidth || window.innerWidth;
+        const height = this.canvas.clientHeight || window.innerHeight;
 
         const targetW = Math.round(width * dpr);
         const targetH = Math.round(height * dpr);
@@ -329,9 +340,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.ctx.imageSmoothingEnabled = true;
             this.ctx.imageSmoothingQuality = 'high';
           }
-          return true;
         }
-        return false;
       }
 
       loadFrame(index, highPriority = false, callback = null) {
@@ -369,7 +378,7 @@ document.addEventListener('DOMContentLoaded', () => {
           
           if (callback) callback(img);
 
-          // If this frame is the active target or within immediate vicinity of current scroll, redraw
+          // If this frame is the active target, redraw smoothly
           if (Math.abs(index - this.targetIndex) <= 2) {
             this.drawFrame(this.targetIndex);
           }
@@ -389,29 +398,28 @@ document.addEventListener('DOMContentLoaded', () => {
       // Preload a smart buffer around the current frame (prioritize scroll direction)
       preloadBuffer(centerIndex) {
         const ahead = this.activeConfig.bufferAhead || 12;
-        const behind = this.activeConfig.bufferBehind || 5;
+        const behind = this.activeConfig.bufferBehind || 6;
         const total = this.activeConfig.totalFrames;
 
         // Highest priority: active frame
         this.loadFrame(centerIndex, true);
 
-        // Next priority: frames ahead in scroll direction
+        // Frames ahead in scroll direction
         for (let i = 1; i <= ahead; i++) {
           if (centerIndex + i < total) this.loadFrame(centerIndex + i);
         }
 
-        // Frames immediately behind
+        // Frames behind
         for (let i = 1; i <= behind; i++) {
           if (centerIndex - i >= 0) this.loadFrame(centerIndex - i);
         }
       }
 
-      // Smooth background preloader streaming all frames progressively into browser cache
+      // Progressive streaming of all frames into browser cache
       startBackgroundPreload() {
         if (this.bgPreloadTimer) clearInterval(this.bgPreloadTimer);
 
         this.bgPreloadTimer = setInterval(() => {
-          // If network is busy with active priority loads, yield
           if (this.activeConcurrentLoads >= this.maxConcurrentLoads) return;
 
           let dispatched = 0;
@@ -428,7 +436,7 @@ document.addEventListener('DOMContentLoaded', () => {
             clearInterval(this.bgPreloadTimer);
             this.bgPreloadTimer = null;
           }
-        }, 60);
+        }, 50);
       }
 
       drawFrame(index) {
@@ -436,7 +444,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let frameToDraw = this.frames[index];
 
-        // Outward neighbor lookup if exact target frame is still downloading
+        // Outward search for nearest loaded frame to prevent any blank flashes
         if (!frameToDraw || !frameToDraw.loaded || !frameToDraw.img) {
           const total = this.activeConfig.totalFrames;
           for (let r = 1; r < total; r++) {
@@ -453,7 +461,6 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }
 
-        // Fallback to frame 0
         if (!frameToDraw || !frameToDraw.loaded || !frameToDraw.img) {
           if (this.frames[0] && this.frames[0].loaded && this.frames[0].img) {
             frameToDraw = this.frames[0];
@@ -470,7 +477,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const iw = img.naturalWidth || this.activeConfig.nativeWidth || 1080;
         const ih = img.naturalHeight || this.activeConfig.nativeHeight || 1920;
 
-        // High quality proportional cover fit centered without distortion
+        // Proportional cover fit centered
         const scale = Math.max(cw / iw, ch / ih);
         const dw = iw * scale;
         const dh = ih * scale;
@@ -480,68 +487,78 @@ document.addEventListener('DOMContentLoaded', () => {
         this.ctx.imageSmoothingEnabled = true;
         this.ctx.imageSmoothingQuality = 'high';
         this.ctx.drawImage(img, dx, dy, dw, dh);
-        this.lastRenderedIndex = index;
+        this.renderedFrameIndex = index;
       }
 
-      // Throttled single rAF loop for high-performance touch scrolling
-      requestScrollUpdate() {
-        if (!this.scrollPending) {
-          this.scrollPending = true;
-          requestAnimationFrame(() => this.onScrollTick());
+      // Fast scroll listener: zero layout thrashing
+      onScroll() {
+        const scrollY = window.pageYOffset || document.documentElement.scrollTop || window.scrollY || 0;
+        const rawProgress = scrollY / this.maxScroll;
+        this.targetProgress = Math.max(0, Math.min(1, rawProgress));
+
+        if (!this.isTicking) {
+          this.isTicking = true;
+          requestAnimationFrame(() => this.updateLoop());
         }
       }
 
-      onScrollTick() {
-        this.scrollPending = false;
-        
-        // Dynamically ensure canvas matches mobile viewport dimensions
-        this.setupCanvasDimensions();
-
-        const rect = this.track.getBoundingClientRect();
-        const maxScroll = this.track.offsetHeight - window.innerHeight;
-
-        if (maxScroll > 0) {
-          const rawProgress = -rect.top / maxScroll;
-          this.currentProgress = Math.max(0, Math.min(1, rawProgress));
-
-          // Compute target frame index (0 to totalFrames - 1)
-          this.targetIndex = Math.min(
-            this.activeConfig.totalFrames - 1,
-            Math.max(0, Math.floor(this.currentProgress * (this.activeConfig.totalFrames - 1)))
-          );
-
-          // Priority load active frame & sliding window
-          this.preloadBuffer(this.targetIndex);
-
-          // Draw active frame to canvas
-          this.drawFrame(this.targetIndex);
-
-          // Coordinate Scroll Cue visibility
-          if (this.scrollCue) {
-            if (this.currentProgress > 0.02) {
-              this.scrollCue.classList.add('is-hidden');
-            } else {
-              this.scrollCue.classList.remove('is-hidden');
-            }
+      updateLoop() {
+        // Mobile uses ultra-smooth lerp damping; desktop uses exact 1:1 sync
+        if (this.isMobile) {
+          const diff = this.targetProgress - this.smoothProgress;
+          if (Math.abs(diff) > 0.0003) {
+            this.smoothProgress += diff * 0.32;
+          } else {
+            this.smoothProgress = this.targetProgress;
           }
+        } else {
+          this.smoothProgress = this.targetProgress;
+        }
 
-          // Coordinate End Overlay luxury reveal
-          if (this.endScrollOverlay) {
-            if (this.currentProgress >= 0.72) {
-              this.endScrollOverlay.classList.add('is-visible');
-            } else {
-              this.endScrollOverlay.classList.remove('is-visible');
-            }
+        const total = this.activeConfig.totalFrames;
+        const exactIndex = this.smoothProgress * (total - 1);
+        this.targetIndex = Math.min(total - 1, Math.max(0, Math.round(exactIndex)));
+
+        // Priority window preloading
+        this.preloadBuffer(this.targetIndex);
+
+        // Render frame
+        this.drawFrame(this.targetIndex);
+
+        // Coordinate Scroll Cue visibility
+        if (this.scrollCue) {
+          if (this.smoothProgress > 0.02) {
+            this.scrollCue.classList.add('is-hidden');
+          } else {
+            this.scrollCue.classList.remove('is-hidden');
           }
+        }
+
+        // Coordinate End Overlay luxury reveal
+        if (this.endScrollOverlay) {
+          if (this.smoothProgress >= 0.72) {
+            this.endScrollOverlay.classList.add('is-visible');
+          } else {
+            this.endScrollOverlay.classList.remove('is-visible');
+          }
+        }
+
+        // Keep running loop if still interpolating on mobile
+        if (this.isMobile && Math.abs(this.targetProgress - this.smoothProgress) > 0.0003) {
+          requestAnimationFrame(() => this.updateLoop());
+        } else {
+          this.isTicking = false;
         }
       }
 
       handleResize() {
-        this.setupCanvasDimensions();
-        const wasMobile = this.isMobile;
         this.selectActiveConfiguration();
+        this.measure();
 
-        // If switched breakpoint between desktop and mobile with available frames
+        const wasMobile = this.isMobile;
+        this.isMobile = this.checkIsMobile();
+
+        // If switched breakpoint between desktop and mobile
         if (wasMobile !== this.isMobile && this.hasMobileFrames) {
           if (this.bgPreloadTimer) clearInterval(this.bgPreloadTimer);
           this.initFrameCache();
@@ -556,17 +573,17 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       bindEvents() {
-        const onScroll = () => this.requestScrollUpdate();
-        window.addEventListener('scroll', onScroll, { passive: true });
+        const onScrollBound = () => this.onScroll();
+        window.addEventListener('scroll', onScrollBound, { passive: true });
 
         let resizeTimeout;
         window.addEventListener('resize', () => {
           clearTimeout(resizeTimeout);
-          resizeTimeout = setTimeout(() => this.handleResize(), 150);
+          resizeTimeout = setTimeout(() => this.handleResize(), 100);
         }, { passive: true });
 
         window.addEventListener('orientationchange', () => {
-          setTimeout(() => this.handleResize(), 200);
+          setTimeout(() => this.handleResize(), 150);
         }, { passive: true });
 
         // Wheel bridge on End Overlay for desktop trackpad/mouse reverse scrolling
@@ -574,7 +591,7 @@ document.addEventListener('DOMContentLoaded', () => {
           this.endScrollOverlay.addEventListener('wheel', (e) => {
             if (e.deltaY < 0 && this.endScrollOverlay.scrollTop <= 1) {
               window.scrollBy({ top: e.deltaY, behavior: 'auto' });
-              this.requestScrollUpdate();
+              this.onScroll();
             }
           }, { passive: true });
         }
