@@ -204,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Mobile Configuration (201 frames, 1080x1920)
         this.mobileConfig = {
-          folder: 'mobile%20view/images/',
+          folder: 'public/images/mobile/',
           prefix: 'frame-',
           ext: '.jpg',
           digits: 4,
@@ -213,7 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
           nativeHeight: 1920
         };
 
-        this.hasMobileFrames = true; // Mobile frames verified in mobile view/images/
+        this.hasMobileFrames = true;
         this.isMobile = this.checkIsMobile();
         this.activeConfig = this.isMobile ? this.mobileConfig : this.desktopConfig;
 
@@ -326,12 +326,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         img.onerror = () => {
           item.loading = false;
-          // Retry with unencoded space if needed
-          if (this.activeConfig.folder.includes('%20')) {
+          // Robust fallback chain: public/images/mobile/ -> mobile view/images/ -> public/images/
+          if (this.activeConfig === this.mobileConfig) {
+            const altPath = this.activeConfig.folder.includes('public/images/mobile/') 
+              ? `mobile view/images/${this.activeConfig.prefix}${String(index + 1).padStart(this.activeConfig.digits, '0')}${this.activeConfig.ext}`
+              : `public/images/${this.desktopConfig.prefix}${String(Math.min(264, Math.max(1, Math.round((index / 200) * 263) + 1))).padStart(4, '0')}.jpg`;
+
             const fallbackImg = new Image();
             fallbackImg.decoding = 'async';
             fallbackImg.onload = () => {
-              this.activeConfig.folder = 'mobile view/images/';
               item.loaded = true;
               item.loading = false;
               item.img = fallbackImg;
@@ -339,7 +342,7 @@ document.addEventListener('DOMContentLoaded', () => {
               this.requestRender();
             };
             fallbackImg.onerror = () => { item.loading = false; };
-            fallbackImg.src = `mobile view/images/${this.activeConfig.prefix}${String(index + 1).padStart(this.activeConfig.digits, '0')}${this.activeConfig.ext}`;
+            fallbackImg.src = altPath;
           }
         };
 
@@ -402,9 +405,11 @@ document.addEventListener('DOMContentLoaded', () => {
               break;
             }
           }
+        // If still nothing loaded in active config, load and paint frame 0 immediately
+        if (!frameToDraw || !frameToDraw.loaded || !frameToDraw.img) {
+          this.loadFrame(0, true, () => this.drawFrame(0));
+          return;
         }
-
-        if (!frameToDraw || !frameToDraw.loaded || !frameToDraw.img) return;
 
         const img = frameToDraw.img;
         const cw = this.canvas.width;
