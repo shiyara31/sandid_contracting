@@ -75,6 +75,7 @@ h6 {
 }
 
 html {
+  scroll-behavior: smooth;
   font-size: 16px;
 }
 
@@ -83,6 +84,7 @@ body {
   background-color: var(--bg-cream);
   color: var(--text-dark);
   line-height: 1.6;
+  overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -3046,10 +3048,10 @@ footer.site-footer {
    HOME PAGE SCROLL-BASED CANVAS HERO ANIMATION
    ========================================================================== */
 .home-page-body {
+  overflow-x: hidden;
+  overflow-y: auto;
   min-height: 100vh;
-  min-height: 100dvh;
   margin: 0;
-  padding: 0;
   background-color: #0b0b0b;
 }
 
@@ -3057,12 +3059,10 @@ footer.site-footer {
   position: relative;
   width: 100%;
   height: 400vh;
-  height: 400dvh;
   background-color: #0b0b0b;
 }
 
 .hero-sticky-frame {
-  position: -webkit-sticky;
   position: sticky;
   top: 0;
   left: 0;
@@ -3074,7 +3074,7 @@ footer.site-footer {
   align-items: center;
   justify-content: center;
   touch-action: pan-y;
-  background-color: #0b0b0b;
+  -webkit-overflow-scrolling: touch;
 }
 
 #hero-scroll-canvas {
@@ -3083,10 +3083,17 @@ footer.site-footer {
   left: 0;
   width: 100%;
   height: 100%;
+  object-fit: cover;
+  object-position: center;
+  z-index: 1;
   display: block;
   pointer-events: none;
   touch-action: pan-y;
-  background-color: #0b0b0b;
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  will-change: transform;
 }
 
 .hero-canvas-vignette {
@@ -3173,7 +3180,6 @@ footer.site-footer {
   left: 0;
   width: 100%;
   height: 100vh;
-  height: 100dvh;
   height: 100svh;
   display: flex;
   justify-content: space-between;
@@ -3182,14 +3188,12 @@ footer.site-footer {
   z-index: 10;
   pointer-events: none;
   opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.85s, background 0.85s ease;
+  transition: opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1), background 0.85s ease;
   background: transparent;
 }
 
 .end-scroll-overlay.is-visible {
   opacity: 1;
-  visibility: visible;
   pointer-events: auto;
   background: linear-gradient(to right, rgba(0, 0, 0, 0.68) 0%, rgba(0, 0, 0, 0.2) 48%, rgba(0, 0, 0, 0.62) 100%);
 }
@@ -3899,48 +3903,16 @@ footer.site-footer {
     padding-top: 1.25rem;
   }
 
-  /* Mobile Hero Fixed Viewport Frame - 100% Locked to Viewport */
-  .hero-scroll-track {
-    position: relative;
-    width: 100%;
-    height: 380vh;
-    height: 380dvh;
-    background-color: #0b0b0b;
-  }
-
-  .hero-sticky-frame {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    height: 100vh !important;
-    height: 100dvh !important;
-    overflow: hidden;
-    z-index: 1;
-    touch-action: pan-y;
-    background-color: #0b0b0b;
-  }
-
   /* End-of-Scroll Overlay (index.html) - Full-Page Rich Typography with Zero Middle Gap */
   .end-scroll-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    height: 100vh;
-    height: 100dvh;
     padding: 2.2rem 1.4rem 4.5rem;
     flex-direction: column;
     justify-content: flex-start;
-    overflow-y: hidden;
-    touch-action: pan-y;
-  }
-
-  .end-scroll-overlay.is-visible {
+    height: 100vh;
+    height: 100dvh;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
     scrollbar-width: thin;
     scrollbar-color: rgba(200, 169, 126, 0.35) transparent;
   }
