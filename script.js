@@ -387,21 +387,37 @@ document.addEventListener('DOMContentLoaded', () => {
         item.img = img;
       }
 
-      // Preload a sliding buffer around the current frame and free distant frames on mobile
-      preloadBuffer(centerIndex) {
-        const bufferRadius = this.isMobile ? 12 : 16;
-        const start = Math.max(0, centerIndex - bufferRadius);
-        const end = Math.min(this.activeConfig.totalFrames - 1, centerIndex + bufferRadius);
+      // Preload a sliding buffer with directional priority around the current frame
+      preloadBuffer(centerIndex, direction = 1) {
+        const forwardRadius = this.isMobile ? 18 : 22;
+        const backwardRadius = this.isMobile ? 8 : 10;
+        
+        const ahead = direction >= 0 ? forwardRadius : backwardRadius;
+        const behind = direction >= 0 ? backwardRadius : forwardRadius;
 
-        // Prioritize frames directly around current scroll position
-        for (let offset = 0; offset <= bufferRadius; offset++) {
-          if (centerIndex + offset <= end) this.loadFrame(centerIndex + offset);
-          if (centerIndex - offset >= start) this.loadFrame(centerIndex - offset);
+        const start = Math.max(0, centerIndex - behind);
+        const end = Math.min(this.activeConfig.totalFrames - 1, centerIndex + ahead);
+
+        // Preload in forward direction first
+        if (direction >= 0) {
+          for (let offset = 0; offset <= ahead; offset++) {
+            if (centerIndex + offset <= end) this.loadFrame(centerIndex + offset);
+          }
+          for (let offset = 1; offset <= behind; offset++) {
+            if (centerIndex - offset >= start) this.loadFrame(centerIndex - offset);
+          }
+        } else {
+          for (let offset = 0; offset <= ahead; offset++) {
+            if (centerIndex - offset >= start) this.loadFrame(centerIndex - offset);
+          }
+          for (let offset = 1; offset <= behind; offset++) {
+            if (centerIndex + offset <= end) this.loadFrame(centerIndex + offset);
+          }
         }
 
         // On mobile, gently manage memory if buffer grows too large
         if (this.isMobile) {
-          const maxDistance = 45;
+          const maxDistance = 50;
           for (let i = 1; i < this.activeConfig.totalFrames; i++) {
             if (Math.abs(i - centerIndex) > maxDistance && this.frames[i] && this.frames[i].loaded) {
               this.frames[i].img = null;
@@ -492,11 +508,15 @@ document.addEventListener('DOMContentLoaded', () => {
             lastFrameDrawn = -1;
           }
 
-          // Smoothly interpolate towards target scroll position (buttery smooth on touch)
-          const lerpFactor = this.isMobile ? 0.28 : 0.4;
           const diff = this.targetProgress - this.smoothProgress;
+          const absDiff = Math.abs(diff);
 
-          if (Math.abs(diff) > 0.0001) {
+          if (absDiff > 0.00005) {
+            // Adaptive velocity-damped easing: silky smooth on gentle drag, responsive on fast fling
+            const baseRate = this.isMobile ? 0.18 : 0.26;
+            const velocityBoost = Math.min(0.20, absDiff * 0.5);
+            const lerpFactor = baseRate + velocityBoost;
+
             this.smoothProgress += diff * lerpFactor;
           } else {
             this.smoothProgress = this.targetProgress;
@@ -508,8 +528,9 @@ document.addEventListener('DOMContentLoaded', () => {
           );
 
           if (currentTarget !== lastFrameDrawn) {
+            const scrollDir = diff >= 0 ? 1 : -1;
             this.loadFrame(currentTarget, true);
-            this.preloadBuffer(currentTarget);
+            this.preloadBuffer(currentTarget, scrollDir);
             this.drawFrame(currentTarget);
             lastFrameDrawn = currentTarget;
           }
