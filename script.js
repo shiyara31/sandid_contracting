@@ -318,13 +318,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const width = rect.width || window.innerWidth;
         const height = rect.height || window.innerHeight;
 
-        this.canvas.width = Math.round(width * dpr);
-        this.canvas.height = Math.round(height * dpr);
+        const targetW = Math.round(width * dpr);
+        const targetH = Math.round(height * dpr);
 
-        if (this.ctx) {
-          this.ctx.imageSmoothingEnabled = true;
-          this.ctx.imageSmoothingQuality = 'high';
+        if (this.canvas.width !== targetW || this.canvas.height !== targetH) {
+          this.canvas.width = targetW;
+          this.canvas.height = targetH;
+
+          if (this.ctx) {
+            this.ctx.imageSmoothingEnabled = true;
+            this.ctx.imageSmoothingQuality = 'high';
+          }
+          return true;
         }
+        return false;
       }
 
       loadFrame(index, highPriority = false, callback = null) {
@@ -486,6 +493,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
       onScrollTick() {
         this.scrollPending = false;
+        
+        // Dynamically ensure canvas matches mobile viewport dimensions
+        this.setupCanvasDimensions();
+
         const rect = this.track.getBoundingClientRect();
         const maxScroll = this.track.offsetHeight - window.innerHeight;
 

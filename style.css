@@ -75,7 +75,6 @@ h6 {
 }
 
 html {
-  scroll-behavior: smooth;
   font-size: 16px;
 }
 
@@ -84,7 +83,7 @@ body {
   background-color: var(--bg-cream);
   color: var(--text-dark);
   line-height: 1.6;
-  overflow-x: hidden;
+  overflow-x: clip;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -3048,9 +3047,10 @@ footer.site-footer {
    HOME PAGE SCROLL-BASED CANVAS HERO ANIMATION
    ========================================================================== */
 .home-page-body {
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow-x: clip;
+  overflow-y: visible;
   min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
   background-color: #0b0b0b;
 }
@@ -3059,22 +3059,25 @@ footer.site-footer {
   position: relative;
   width: 100%;
   height: 400vh;
+  height: 400dvh;
   background-color: #0b0b0b;
 }
 
 .hero-sticky-frame {
+  position: -webkit-sticky;
   position: sticky;
   top: 0;
   left: 0;
   width: 100%;
   height: 100vh;
   height: 100dvh;
+  height: 100svh;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
   touch-action: pan-y;
-  -webkit-overflow-scrolling: touch;
+  background-color: #0b0b0b;
 }
 
 #hero-scroll-canvas {
@@ -3083,17 +3086,10 @@ footer.site-footer {
   left: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  object-position: center;
-  z-index: 1;
   display: block;
   pointer-events: none;
   touch-action: pan-y;
-  transform: translate3d(0, 0, 0);
-  -webkit-transform: translate3d(0, 0, 0);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  will-change: transform;
+  background-color: #0b0b0b;
 }
 
 .hero-canvas-vignette {
@@ -3180,6 +3176,7 @@ footer.site-footer {
   left: 0;
   width: 100%;
   height: 100vh;
+  height: 100dvh;
   height: 100svh;
   display: flex;
   justify-content: space-between;
@@ -3188,12 +3185,14 @@ footer.site-footer {
   z-index: 10;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1), background 0.85s ease;
+  visibility: hidden;
+  transition: opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.85s, background 0.85s ease;
   background: transparent;
 }
 
 .end-scroll-overlay.is-visible {
   opacity: 1;
+  visibility: visible;
   pointer-events: auto;
   background: linear-gradient(to right, rgba(0, 0, 0, 0.68) 0%, rgba(0, 0, 0, 0.2) 48%, rgba(0, 0, 0, 0.62) 100%);
 }
@@ -3910,9 +3909,14 @@ footer.site-footer {
     justify-content: flex-start;
     height: 100vh;
     height: 100dvh;
+    height: 100svh;
+    overflow-y: hidden;
+    touch-action: pan-y;
+  }
+
+  .end-scroll-overlay.is-visible {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    touch-action: pan-y;
     scrollbar-width: thin;
     scrollbar-color: rgba(200, 169, 126, 0.35) transparent;
   }
