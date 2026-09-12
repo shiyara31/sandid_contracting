@@ -224,8 +224,12 @@ document.addEventListener('DOMContentLoaded', () => {
         this.lastRenderedIndex = -1;
         this.targetProgress = 0;
         this.smoothProgress = 0;
-        this.bgPreloadTimer = null;
-        this.bgPreloadIndex = 0;
+
+        // High-speed parallel preloader queue & concurrency manager
+        this.maxConcurrency = this.isMobile ? 6 : 8;
+        this.activeRequests = 0;
+        this.preloadQueue = [];
+        this.queuedSet = new Set();
 
         this.init();
       }
@@ -243,17 +247,19 @@ document.addEventListener('DOMContentLoaded', () => {
         this.initFrameCache();
         this.bindEvents();
         
-        // Load and paint first frame immediately
+        // 1. Paint first frame immediately
         this.loadFrame(0, true, () => {
           this.drawFrame(0);
           this.updateScroll();
-          this.startBackgroundPreload();
         });
 
-        // Start 60fps smooth animation interpolation loop
+        // 2. Launch instant keyframe scaffold burst and background streaming
+        this.launchSmartPreloadScaffold();
+
+        // 3. Start 60fps smooth animation interpolation loop
         this.startSmoothRenderLoop();
 
-        // Verify mobile folder in background to confirm candidate
+        // 4. Verify candidate mobile folder in background
         this.detectMobileAvailability();
       }
 
@@ -310,12 +316,14 @@ document.addEventListener('DOMContentLoaded', () => {
             loading: false
           };
         }
-        this.bgPreloadIndex = 0;
+        this.preloadQueue = [];
+        this.queuedSet = new Set();
+        this.activeRequests = 0;
         this.lastRenderedIndex = -1;
       }
 
       setupCanvasDimensions() {
-        const dpr = Math.min(window.devicePixelRatio || 1, 2); // Cap at 2x for retina crispness without memory bloat
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
         const width = Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0);
         const height = Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0);
 
@@ -335,6 +343,40 @@ document.addEventListener('DOMContentLoaded', () => {
           return true;
         }
         return false;
+      }
+
+      // Priority queue manager for network image requests
+      enqueueFrame(index, highPriority = false) {
+        if (index < 0 || index >= this.activeConfig.totalFrames) return;
+        const item = this.frames[index];
+        if (!item || item.loaded || item.loading) return;
+
+        if (highPriority) {
+          // Remove if already in queue to place at front
+          const existingPos = this.preloadQueue.indexOf(index);
+          if (existingPos !== -1) {
+            this.preloadQueue.splice(existingPos, 1);
+          }
+          this.preloadQueue.unshift(index);
+          this.queuedSet.add(index);
+        } else {
+          if (!this.queuedSet.has(index)) {
+            this.preloadQueue.push(index);
+            this.queuedSet.add(index);
+          }
+        }
+
+        this.pumpQueue();
+      }
+
+      pumpQueue() {
+        while (this.activeRequests < this.maxConcurrency && this.preloadQueue.length > 0) {
+          const nextIndex = this.preloadQueue.shift();
+          this.queuedSet.delete(nextIndex);
+          if (nextIndex !== undefined) {
+            this.loadFrame(nextIndex);
+          }
+        }
       }
 
       loadFrame(index, highPriority = false, callback = null) {
@@ -359,38 +401,77 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         item.loading = true;
+        this.activeRequests++;
+
         const img = new Image();
         img.decoding = 'async';
 
-        img.onload = () => {
+        const onFrameSuccess = () => {
           item.loaded = true;
           item.loading = false;
           item.img = img;
-          
+          this.activeRequests = Math.max(0, this.activeRequests - 1);
+          this.pumpQueue();
+
           if (callback) callback(img);
 
-          // If this frame was just loaded, draw it if needed
+          // If this frame corresponds to the currently visible scroll position, render immediately
           const currentTarget = Math.min(
             this.activeConfig.totalFrames - 1,
             Math.max(0, Math.round(this.smoothProgress * (this.activeConfig.totalFrames - 1)))
           );
-          if (index === currentTarget) {
+          if (index === currentTarget || Math.abs(index - currentTarget) <= 1) {
             this.drawFrame(currentTarget);
           }
         };
 
-        img.onerror = () => {
+        const onFrameError = () => {
           item.loading = false;
+          this.activeRequests = Math.max(0, this.activeRequests - 1);
+          this.pumpQueue();
         };
 
+        img.onload = () => {
+          if ('decode' in img) {
+            img.decode().then(onFrameSuccess).catch(onFrameSuccess);
+          } else {
+            onFrameSuccess();
+          }
+        };
+
+        img.onerror = onFrameError;
         img.src = this.getFrameUrl(index);
         item.img = img;
       }
 
-      // Preload a sliding buffer with directional priority around the current frame
+      // Launch multi-tier distributed keyframe preloader
+      launchSmartPreloadScaffold() {
+        const total = this.activeConfig.totalFrames;
+
+        // Step 1: Immediate buffer of first 12 frames
+        for (let i = 0; i < Math.min(12, total); i++) {
+          this.enqueueFrame(i, true);
+        }
+
+        // Step 2: Milestone Keyframe Scaffold (every 5th frame on mobile, every 7th on desktop)
+        // This guarantees that ANY position the user scrubs or scrolls to will have a loaded frame within 2-3 frames!
+        const step = this.isMobile ? 5 : 7;
+        for (let i = step; i < total; i += step) {
+          this.enqueueFrame(i, false);
+        }
+
+        // Step 3: Progressive dense infill across the rest of the sequence
+        for (let i = 0; i < total; i++) {
+          if (!this.frames[i].loaded && !this.frames[i].loading) {
+            this.enqueueFrame(i, false);
+          }
+        }
+      }
+
+      // Preload a sliding dense buffer ahead in the scroll direction
       preloadBuffer(centerIndex, direction = 1) {
-        const forwardRadius = this.isMobile ? 18 : 22;
-        const backwardRadius = this.isMobile ? 8 : 10;
+        const forwardRadius = this.isMobile ? 24 : 30;
+        const backwardRadius = this.isMobile ? 10 : 12;
         
         const ahead = direction >= 0 ? forwardRadius : backwardRadius;
         const behind = direction >= 0 ? backwardRadius : forwardRadius;
@@ -398,56 +479,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const start = Math.max(0, centerIndex - behind);
         const end = Math.min(this.activeConfig.totalFrames - 1, centerIndex + ahead);
 
-        // Preload in forward direction first
+        // Prioritize frames directly in front of the user's motion
         if (direction >= 0) {
           for (let offset = 0; offset <= ahead; offset++) {
-            if (centerIndex + offset <= end) this.loadFrame(centerIndex + offset);
+            const idx = centerIndex + offset;
+            if (idx <= end) this.enqueueFrame(idx, true);
           }
           for (let offset = 1; offset <= behind; offset++) {
-            if (centerIndex - offset >= start) this.loadFrame(centerIndex - offset);
+            const idx = centerIndex - offset;
+            if (idx >= start) this.enqueueFrame(idx, false);
           }
         } else {
           for (let offset = 0; offset <= ahead; offset++) {
-            if (centerIndex - offset >= start) this.loadFrame(centerIndex - offset);
+            const idx = centerIndex - offset;
+            if (idx >= start) this.enqueueFrame(idx, true);
           }
           for (let offset = 1; offset <= behind; offset++) {
-            if (centerIndex + offset <= end) this.loadFrame(centerIndex + offset);
+            const idx = centerIndex + offset;
+            if (idx <= end) this.enqueueFrame(idx, false);
           }
         }
-
-        // On mobile, gently manage memory if buffer grows too large
-        if (this.isMobile) {
-          const maxDistance = 50;
-          for (let i = 1; i < this.activeConfig.totalFrames; i++) {
-            if (Math.abs(i - centerIndex) > maxDistance && this.frames[i] && this.frames[i].loaded) {
-              this.frames[i].img = null;
-              this.frames[i].loaded = false;
-              this.frames[i].loading = false;
-            }
-          }
-        }
-      }
-
-      // Background progressive preloader for remaining frames
-      startBackgroundPreload() {
-        if (this.bgPreloadTimer) clearInterval(this.bgPreloadTimer);
-
-        this.bgPreloadTimer = setInterval(() => {
-          let count = 0;
-          const batchSize = this.isMobile ? 1 : 2;
-          while (this.bgPreloadIndex < this.activeConfig.totalFrames && count < batchSize) {
-            if (!this.frames[this.bgPreloadIndex].loaded && !this.frames[this.bgPreloadIndex].loading) {
-              this.loadFrame(this.bgPreloadIndex);
-              count++;
-            }
-            this.bgPreloadIndex++;
-          }
-
-          if (this.bgPreloadIndex >= this.activeConfig.totalFrames) {
-            clearInterval(this.bgPreloadTimer);
-            this.bgPreloadTimer = null;
-          }
-        }, 60);
       }
 
       drawFrame(index) {
@@ -455,7 +506,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let frameToDraw = this.frames[index];
 
-        // If target frame is not loaded yet, find nearest loaded frame to eliminate flicker
+        // If target frame is still decoding, instantly pick the closest loaded frame to maintain continuous 60fps
         if (!frameToDraw || !frameToDraw.loaded) {
           let nearestIndex = -1;
           let minDistance = Infinity;
@@ -483,7 +534,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const iw = img.naturalWidth || this.activeConfig.defaultWidth;
         const ih = img.naturalHeight || this.activeConfig.defaultHeight;
 
-        // Proportional cover-fit centered without distortion (covers 100% of canvas)
+        // Proportional cover-fit centered without distortion (fills 100% of canvas)
         const scale = Math.max(cw / iw, ch / ih);
         const dw = Math.ceil(iw * scale);
         const dh = Math.ceil(ih * scale);
@@ -499,7 +550,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let lastFrameDrawn = -1;
 
         const tick = () => {
-          // Check if mobile viewport height changed (address bar show/hide)
+          // Check if mobile viewport dimensions shifted (address bar show/hide)
           const curW = Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0);
           const curH = Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0);
 
@@ -512,9 +563,9 @@ document.addEventListener('DOMContentLoaded', () => {
           const absDiff = Math.abs(diff);
 
           if (absDiff > 0.00005) {
-            // Adaptive velocity-damped easing: silky smooth on gentle drag, responsive on fast fling
-            const baseRate = this.isMobile ? 0.18 : 0.26;
-            const velocityBoost = Math.min(0.20, absDiff * 0.5);
+            // Adaptive velocity-damped easing: ultra silky on drag, responsive on fast flings
+            const baseRate = this.isMobile ? 0.20 : 0.26;
+            const velocityBoost = Math.min(0.22, absDiff * 0.6);
             const lerpFactor = baseRate + velocityBoost;
 
             this.smoothProgress += diff * lerpFactor;
@@ -529,7 +580,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           if (currentTarget !== lastFrameDrawn) {
             const scrollDir = diff >= 0 ? 1 : -1;
-            this.loadFrame(currentTarget, true);
+            this.enqueueFrame(currentTarget, true);
             this.preloadBuffer(currentTarget, scrollDir);
             this.drawFrame(currentTarget);
             lastFrameDrawn = currentTarget;
@@ -577,14 +628,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // If switched between desktop and mobile sequence
         if (prevConfigName !== this.activeConfig.name) {
-          if (this.bgPreloadTimer) clearInterval(this.bgPreloadTimer);
           this.initFrameCache();
           this.loadFrame(0, true, () => {
-            this.drawFrame(this.targetIndex);
-            this.startBackgroundPreload();
+            this.drawFrame(0);
+            this.launchSmartPreloadScaffold();
           });
         } else {
-          this.drawFrame(this.targetIndex);
+          this.drawFrame(this.lastRenderedIndex >= 0 ? this.lastRenderedIndex : 0);
         }
       }
 
@@ -592,6 +642,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const onScroll = () => this.updateScroll();
         window.addEventListener('scroll', onScroll, { passive: true });
         window.addEventListener('touchmove', onScroll, { passive: true });
+
+        // Instant touch anticipation: start preloading as soon as finger touches the screen
+        const onTouchStart = () => {
+          const currentTarget = Math.min(
+            this.activeConfig.totalFrames - 1,
+            Math.max(0, Math.round(this.smoothProgress * (this.activeConfig.totalFrames - 1)))
+          );
+          this.preloadBuffer(currentTarget, 1);
+        };
+        window.addEventListener('touchstart', onTouchStart, { passive: true });
+        window.addEventListener('pointerdown', onTouchStart, { passive: true });
 
         let resizeTimeout;
         window.addEventListener('resize', () => {
