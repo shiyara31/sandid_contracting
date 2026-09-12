@@ -197,20 +197,24 @@ document.addEventListener('DOMContentLoaded', () => {
           prefix: 'frame-',
           ext: '.jpg',
           digits: 4,
-          totalFrames: 264
+          totalFrames: 264,
+          nativeWidth: 3840,
+          nativeHeight: 2160
         };
 
-        // Mobile Configuration (Separate sequence)
+        // Mobile Configuration (Dedicated sequence from mobile view folder)
         this.mobileConfig = {
-          folder: 'public/images/mobile/',
+          folder: 'mobile%20view/images/',
           prefix: 'frame-',
           ext: '.jpg',
           digits: 4,
-          totalFrames: 264
+          totalFrames: 201,
+          nativeWidth: 1080,
+          nativeHeight: 1920
         };
 
         this.hasMobileFrames = false;
-        this.isMobile = window.innerWidth <= 768;
+        this.isMobile = this.checkIsMobile();
         this.activeConfig = this.desktopConfig;
 
         this.frames = [];
@@ -239,7 +243,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       }
 
-      // Check if mobile frames exist in public/images/mobile/
+      checkIsMobile() {
+        return window.innerWidth <= 768 || window.matchMedia('(max-width: 768px)').matches;
+      }
+
+      // Check if mobile frames exist in mobile view/images/
       detectMobileAvailability() {
         return new Promise((resolve) => {
           const testImg = new Image();
@@ -249,15 +257,25 @@ document.addEventListener('DOMContentLoaded', () => {
             resolve(true);
           };
           testImg.onerror = () => {
-            this.hasMobileFrames = false;
-            resolve(false);
+            // Also test unencoded space path as fallback if needed
+            const fallbackImg = new Image();
+            fallbackImg.onload = () => {
+              this.mobileConfig.folder = 'mobile view/images/';
+              this.hasMobileFrames = true;
+              resolve(true);
+            };
+            fallbackImg.onerror = () => {
+              this.hasMobileFrames = false;
+              resolve(false);
+            };
+            fallbackImg.src = `mobile view/images/${this.mobileConfig.prefix}0001${this.mobileConfig.ext}`;
           };
           testImg.src = testUrl;
         });
       }
 
       selectActiveConfiguration() {
-        this.isMobile = window.innerWidth <= 768;
+        this.isMobile = this.checkIsMobile();
         if (this.isMobile && this.hasMobileFrames) {
           this.activeConfig = this.mobileConfig;
         } else {
@@ -407,8 +425,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const img = frameToDraw.img;
         const cw = this.canvas.width;
         const ch = this.canvas.height;
-        const iw = img.naturalWidth || 3840;
-        const ih = img.naturalHeight || 2160;
+        const iw = img.naturalWidth || this.activeConfig.nativeWidth || 3840;
+        const ih = img.naturalHeight || this.activeConfig.nativeHeight || 2160;
 
         // Cover fit without distortion
         const scale = Math.max(cw / iw, ch / ih);
