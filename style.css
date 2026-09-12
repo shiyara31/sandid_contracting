@@ -3063,6 +3063,7 @@ footer.site-footer {
 }
 
 .hero-sticky-frame {
+  position: -webkit-sticky;
   position: sticky;
   top: 0;
   left: 0;

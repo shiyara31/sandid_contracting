@@ -206,8 +206,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Mobile Configuration (1080x1920, 201 frames)
         this.mobileConfig = {
           name: 'mobile',
-          folder: 'mobile view/images/',
-          candidateFolders: ['mobile view/images/', 'mobile%20view/images/', 'public/images/mobile/'],
+          folder: 'public/images/mobile/',
+          candidateFolders: ['public/images/mobile/', 'mobile view/images/', 'mobile%20view/images/'],
           prefix: 'frame-',
           ext: '.jpg',
           digits: 4,
@@ -216,9 +216,9 @@ document.addEventListener('DOMContentLoaded', () => {
           defaultHeight: 1920
         };
 
-        this.hasMobileFrames = false;
+        this.hasMobileFrames = true;
         this.isMobile = this.checkIsMobile();
-        this.activeConfig = this.desktopConfig;
+        this.activeConfig = this.isMobile ? this.mobileConfig : this.desktopConfig;
 
         this.frames = [];
         this.lastRenderedIndex = -1;
@@ -232,12 +232,14 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       checkIsMobile() {
-        return window.innerWidth <= 768 || (window.innerWidth <= 992 && window.innerHeight > window.innerWidth);
+        const isSmallWidth = window.innerWidth <= 820;
+        const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+        const isPortraitTablet = window.innerWidth <= 1024 && window.innerHeight > window.innerWidth && isTouch;
+        return isSmallWidth || isPortraitTablet;
       }
 
       async init() {
         this.setupCanvasDimensions();
-        await this.detectMobileAvailability();
         this.selectActiveConfiguration();
         this.initFrameCache();
         this.bindEvents();
@@ -248,9 +250,12 @@ document.addEventListener('DOMContentLoaded', () => {
           this.updateScroll();
           this.startBackgroundPreload();
         });
+
+        // Verify mobile folder in background to confirm candidate
+        this.detectMobileAvailability();
       }
 
-      // Check if mobile frames exist in mobile view folder
+      // Check candidate folders for mobile frames
       detectMobileAvailability() {
         const tryFolder = (folder) => {
           return new Promise((resolve) => {
@@ -276,7 +281,6 @@ document.addEventListener('DOMContentLoaded', () => {
               return;
             }
           }
-          this.hasMobileFrames = false;
           resolve(false);
         });
       }
@@ -310,12 +314,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
       setupCanvasDimensions() {
         const rect = this.canvas.getBoundingClientRect();
-        const dpr = Math.min(window.devicePixelRatio || 1, 2); // Cap at 2x for retina sharpness without excessive memory
+        const dpr = Math.min(window.devicePixelRatio || 1, 2); // Cap at 2x for retina crispness without memory bloat
         const width = rect.width || window.innerWidth;
         const height = rect.height || window.innerHeight;
 
-        this.canvas.width = Math.round(width * dpr);
-        this.canvas.height = Math.round(height * dpr);
+        const targetW = Math.round(width * dpr);
+        const targetH = Math.round(height * dpr);
+
+        if (this.canvas.width !== targetW || this.canvas.height !== targetH) {
+          this.canvas.width = targetW;
+          this.canvas.height = targetH;
+        }
 
         if (this.ctx) {
           this.ctx.imageSmoothingEnabled = true;
@@ -369,9 +378,9 @@ document.addEventListener('DOMContentLoaded', () => {
         item.img = img;
       }
 
-      // Preload a sliding buffer around the current frame
+      // Preload a sliding buffer around the current frame and free distant frames on mobile
       preloadBuffer(centerIndex) {
-        const bufferRadius = this.isMobile ? 10 : 12;
+        const bufferRadius = this.isMobile ? 12 : 16;
         const start = Math.max(0, centerIndex - bufferRadius);
         const end = Math.min(this.activeConfig.totalFrames - 1, centerIndex + bufferRadius);
 
@@ -379,6 +388,18 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let offset = 0; offset <= bufferRadius; offset++) {
           if (centerIndex + offset <= end) this.loadFrame(centerIndex + offset);
           if (centerIndex - offset >= start) this.loadFrame(centerIndex - offset);
+        }
+
+        // On mobile, gently manage memory if buffer grows too large
+        if (this.isMobile) {
+          const maxDistance = 40;
+          for (let i = 1; i < this.activeConfig.totalFrames; i++) {
+            if (Math.abs(i - centerIndex) > maxDistance && this.frames[i] && this.frames[i].loaded) {
+              this.frames[i].img = null;
+              this.frames[i].loaded = false;
+              this.frames[i].loading = false;
+            }
+          }
         }
       }
 
@@ -401,7 +422,7 @@ document.addEventListener('DOMContentLoaded', () => {
             clearInterval(this.bgPreloadTimer);
             this.bgPreloadTimer = null;
           }
-        }, 70);
+        }, 60);
       }
 
       drawFrame(index) {
@@ -444,7 +465,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const dx = (cw - dw) * 0.5;
         const dy = (ch - dh) * 0.5;
 
-        this.ctx.clearRect(0, 0, cw, ch);
+        // Direct draw over canvas prevents any black/blank micro-flicker on mobile GPUs
         this.ctx.drawImage(img, dx, dy, dw, dh);
         this.lastRenderedIndex = index;
       }
@@ -470,7 +491,7 @@ document.addEventListener('DOMContentLoaded', () => {
           // Compute target frame index (0 to totalFrames - 1)
           this.targetIndex = Math.min(
             this.activeConfig.totalFrames - 1,
-            Math.max(0, Math.floor(this.currentProgress * (this.activeConfig.totalFrames - 1)))
+            Math.max(0, Math.round(this.currentProgress * (this.activeConfig.totalFrames - 1)))
           );
 
           // Priority load current frame and nearby buffer
@@ -499,6 +520,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       handleResize() {
+        const prevWidth = this.canvas.width;
         this.setupCanvasDimensions();
         const prevConfigName = this.activeConfig.name;
         this.selectActiveConfiguration();
