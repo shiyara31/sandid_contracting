@@ -3048,9 +3048,9 @@ footer.site-footer {
    HOME PAGE SCROLL-BASED CANVAS HERO ANIMATION
    ========================================================================== */
 .home-page-body {
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow-x: clip;
   min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
   background-color: #0b0b0b;
 }
@@ -3073,8 +3073,6 @@ footer.site-footer {
   display: flex;
   align-items: center;
   justify-content: center;
-  touch-action: pan-y;
-  -webkit-overflow-scrolling: touch;
 }
 
 #hero-scroll-canvas {
@@ -3088,7 +3086,6 @@ footer.site-footer {
   z-index: 1;
   display: block;
   pointer-events: none;
-  touch-action: pan-y;
   transform: translate3d(0, 0, 0);
   -webkit-transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
@@ -3180,13 +3177,13 @@ footer.site-footer {
   left: 0;
   width: 100%;
   height: 100vh;
-  height: 100svh;
+  height: 100dvh;
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 3.5rem 4.5rem 3.5rem 5rem;
   z-index: 10;
-  pointer-events: none;
+  pointer-events: none !important;
   opacity: 0;
   transition: opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1), background 0.85s ease;
   background: transparent;
@@ -3194,8 +3191,15 @@ footer.site-footer {
 
 .end-scroll-overlay.is-visible {
   opacity: 1;
-  pointer-events: auto;
+  pointer-events: none !important;
   background: linear-gradient(to right, rgba(0, 0, 0, 0.68) 0%, rgba(0, 0, 0, 0.2) 48%, rgba(0, 0, 0, 0.62) 100%);
+}
+
+.end-scroll-overlay.is-visible a,
+.end-scroll-overlay.is-visible button,
+.end-scroll-overlay.is-visible .right-nav-item,
+.end-scroll-overlay.is-visible .social-icon-btn {
+  pointer-events: auto !important;
 }
 
 /* Elements initial hidden state with smooth slide-up entrance */
@@ -3910,11 +3914,8 @@ footer.site-footer {
     justify-content: flex-start;
     height: 100vh;
     height: 100dvh;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    touch-action: pan-y;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(200, 169, 126, 0.35) transparent;
+    overflow: hidden;
+    pointer-events: none !important;
   }
 
   .end-scroll-overlay::-webkit-scrollbar {
