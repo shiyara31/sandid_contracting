@@ -316,8 +316,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
       setupCanvasDimensions() {
         const dpr = Math.min(window.devicePixelRatio || 1, 2); // Cap at 2x for retina crispness without memory bloat
-        const width = window.innerWidth || document.documentElement.clientWidth;
-        const height = window.innerHeight || document.documentElement.clientHeight;
+        const width = Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0);
+        const height = Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0);
+
+        this.lastMeasuredW = width;
+        this.lastMeasuredH = height;
 
         const targetW = Math.round(width * dpr);
         const targetH = Math.round(height * dpr);
@@ -325,12 +328,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (this.canvas.width !== targetW || this.canvas.height !== targetH) {
           this.canvas.width = targetW;
           this.canvas.height = targetH;
+          if (this.ctx) {
+            this.ctx.imageSmoothingEnabled = true;
+            this.ctx.imageSmoothingQuality = 'high';
+          }
+          return true;
         }
-
-        if (this.ctx) {
-          this.ctx.imageSmoothingEnabled = true;
-          this.ctx.imageSmoothingQuality = 'high';
-        }
+        return false;
       }
 
       loadFrame(index, highPriority = false, callback = null) {
@@ -463,13 +467,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const iw = img.naturalWidth || this.activeConfig.defaultWidth;
         const ih = img.naturalHeight || this.activeConfig.defaultHeight;
 
-        // Proportional cover-fit centered without distortion (slight overfill to prevent subpixel edge lines)
-        const baseScale = Math.max(cw / iw, ch / ih);
-        const scale = this.isMobile ? baseScale * 1.01 : baseScale;
-        const dw = iw * scale;
-        const dh = ih * scale;
-        const dx = (cw - dw) * 0.5;
-        const dy = (ch - dh) * 0.5;
+        // Proportional cover-fit centered without distortion (covers 100% of canvas)
+        const scale = Math.max(cw / iw, ch / ih);
+        const dw = Math.ceil(iw * scale);
+        const dh = Math.ceil(ih * scale);
+        const dx = Math.floor((cw - dw) * 0.5);
+        const dy = Math.floor((ch - dh) * 0.5);
 
         // Direct draw over canvas prevents any black/blank micro-flicker on mobile GPUs
         this.ctx.drawImage(img, dx, dy, dw, dh);
@@ -480,6 +483,15 @@ document.addEventListener('DOMContentLoaded', () => {
         let lastFrameDrawn = -1;
 
         const tick = () => {
+          // Check if mobile viewport height changed (address bar show/hide)
+          const curW = Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0);
+          const curH = Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0);
+
+          if (Math.abs(curW - this.lastMeasuredW) > 1 || Math.abs(curH - this.lastMeasuredH) > 1) {
+            this.setupCanvasDimensions();
+            lastFrameDrawn = -1;
+          }
+
           // Smoothly interpolate towards target scroll position (buttery smooth on touch)
           const lerpFactor = this.isMobile ? 0.28 : 0.4;
           const diff = this.targetProgress - this.smoothProgress;
@@ -509,11 +521,11 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       updateScroll() {
-        const rect = this.track.getBoundingClientRect();
         const maxScroll = this.track.offsetHeight - window.innerHeight;
+        const scrollY = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
 
         if (maxScroll > 0) {
-          const rawProgress = -rect.top / maxScroll;
+          const rawProgress = scrollY / maxScroll;
           this.targetProgress = Math.max(0, Math.min(1, rawProgress));
 
           // Coordinate Scroll Cue visibility
