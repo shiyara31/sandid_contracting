@@ -1,10 +1,10 @@
 document.addEventListener('DOMContentLoaded', () => {
   // Client Logos Infinite Automatic Side Scrolling (Ticker / Marquee)
-  const container = document.getElementById('logos-container');
+  const logoContainers = document.querySelectorAll('.clients-logos-container, #logos-container');
   const prevBtn = document.getElementById('prev-btn');
   const nextBtn = document.getElementById('next-btn');
 
-  if (container) {
+  logoContainers.forEach(container => {
     // Clone children twice to guarantee seamless infinite scrolling on all screens
     const originalChildren = Array.from(container.children);
     if (originalChildren.length > 0) {
@@ -15,60 +15,108 @@ document.addEventListener('DOMContentLoaded', () => {
         container.appendChild(child.cloneNode(true));
       });
 
-      let speed = 0.75; // Smooth px per frame
+      // Float position accumulator prevents mobile browser integer truncation bug on scrollLeft
+      let scrollPos = container.scrollLeft || 0;
+      let speed = 1.0; // Smooth px per 60fps frame
       let isPaused = false;
       let resumeTimeout = null;
       let singleSetWidth = container.scrollWidth / 3;
 
-      window.addEventListener('resize', () => {
-        singleSetWidth = container.scrollWidth / 3;
-      }, { passive: true });
-
-      function stepScroll() {
-        if (!isPaused && singleSetWidth > 0) {
-          container.scrollLeft += speed;
-          if (container.scrollLeft >= singleSetWidth * 2) {
-            container.scrollLeft -= singleSetWidth;
-          } else if (container.scrollLeft <= 0) {
-            container.scrollLeft += singleSetWidth;
-          }
+      const updateWidth = () => {
+        if (container.scrollWidth > 0) {
+          singleSetWidth = container.scrollWidth / 3;
         }
+      };
+
+      // Recalculate as logos load and when viewport resizes
+      window.addEventListener('load', updateWidth, { passive: true });
+      window.addEventListener('resize', updateWidth, { passive: true });
+      window.addEventListener('orientationchange', () => setTimeout(updateWidth, 200), { passive: true });
+      setTimeout(updateWidth, 500);
+      setTimeout(updateWidth, 1500);
+
+      container.querySelectorAll('img').forEach(img => {
+        if (!img.complete) {
+          img.addEventListener('load', updateWidth, { passive: true, once: true });
+        }
+      });
+
+      let lastTimestamp = performance.now();
+
+      function stepScroll(timestamp) {
+        const elapsed = timestamp - lastTimestamp;
+        lastTimestamp = timestamp;
+        const dt = Math.min(2.5, Math.max(0.2, elapsed / 16.67));
+
+        if (!isPaused && singleSetWidth > 10) {
+          scrollPos += speed * dt;
+          if (scrollPos >= singleSetWidth * 2) {
+            scrollPos -= singleSetWidth;
+          } else if (scrollPos <= 0) {
+            scrollPos += singleSetWidth;
+          }
+          container.scrollLeft = scrollPos;
+        }
+
         requestAnimationFrame(stepScroll);
       }
 
       requestAnimationFrame(stepScroll);
 
-      // Pause on mouse hover for easy viewing
+      // Pause on mouse hover for easy viewing on desktop
       container.addEventListener('mouseenter', () => { isPaused = true; });
-      container.addEventListener('mouseleave', () => { isPaused = false; });
-
-      // Pause on mobile touch, resume automatically after release
-      container.addEventListener('touchstart', () => { isPaused = true; }, { passive: true });
-      container.addEventListener('touchend', () => {
-        clearTimeout(resumeTimeout);
-        resumeTimeout = setTimeout(() => { isPaused = false; }, 1500);
+      container.addEventListener('mouseleave', () => {
+        scrollPos = container.scrollLeft;
+        isPaused = false;
       });
+
+      // Touch handling on mobile: sync scroll position and resume automatically
+      const onTouchStart = () => {
+        isPaused = true;
+        clearTimeout(resumeTimeout);
+      };
+
+      const onTouchEnd = () => {
+        scrollPos = container.scrollLeft;
+        clearTimeout(resumeTimeout);
+        resumeTimeout = setTimeout(() => {
+          scrollPos = container.scrollLeft;
+          isPaused = false;
+        }, 1200);
+      };
+
+      container.addEventListener('touchstart', onTouchStart, { passive: true });
+      container.addEventListener('touchend', onTouchEnd, { passive: true });
+      container.addEventListener('touchcancel', onTouchEnd, { passive: true });
 
       // Manual navigation buttons
       if (prevBtn) {
         prevBtn.addEventListener('click', () => {
           isPaused = true;
+          scrollPos = Math.max(0, container.scrollLeft - 280);
           container.scrollBy({ left: -280, behavior: 'smooth' });
           clearTimeout(resumeTimeout);
-          resumeTimeout = setTimeout(() => { isPaused = false; }, 2000);
+          resumeTimeout = setTimeout(() => {
+            scrollPos = container.scrollLeft;
+            isPaused = false;
+          }, 1800);
         });
       }
 
       if (nextBtn) {
         nextBtn.addEventListener('click', () => {
           isPaused = true;
+          scrollPos = container.scrollLeft + 280;
           container.scrollBy({ left: 280, behavior: 'smooth' });
           clearTimeout(resumeTimeout);
-          resumeTimeout = setTimeout(() => { isPaused = false; }, 2000);
+          resumeTimeout = setTimeout(() => {
+            scrollPos = container.scrollLeft;
+            isPaused = false;
+          }, 1800);
         });
       }
     }
-  }
+  });
 
   // Smooth scroll for anchor & HOME links on index.html
   document.querySelectorAll('a[href="index.html"], a[href="#"]').forEach(anchor => {
