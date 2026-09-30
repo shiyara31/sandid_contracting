@@ -239,8 +239,8 @@ document.addEventListener('DOMContentLoaded', () => {
       checkIsMobile() {
         const isSmallWidth = window.innerWidth <= 820;
         const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-        const isPortraitTablet = window.innerWidth <= 1024 && window.innerHeight > window.innerWidth && isTouch;
-        return isSmallWidth || isPortraitTablet;
+        const isPortrait = window.innerHeight > window.innerWidth;
+        return (isSmallWidth && isPortrait) || (isTouch && isPortrait) || window.innerWidth <= 768;
       }
 
       async init() {
@@ -272,6 +272,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const testUrl = `${folder}${this.mobileConfig.prefix}0001${this.mobileConfig.ext}`;
             testImg.onload = () => {
               this.mobileConfig.folder = folder;
+              this.hasMobileFrames = true;
+              if (this.checkIsMobile()) {
+                this.selectActiveConfiguration();
+              }
               resolve(true);
             };
             testImg.onerror = () => {
@@ -285,7 +289,6 @@ document.addEventListener('DOMContentLoaded', () => {
           for (const folder of this.mobileConfig.candidateFolders) {
             const found = await tryFolder(folder);
             if (found) {
-              this.hasMobileFrames = true;
               resolve(true);
               return;
             }
@@ -296,7 +299,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
       selectActiveConfiguration() {
         this.isMobile = this.checkIsMobile();
-        this.activeConfig = this.desktopConfig;
+        const prevConfig = this.activeConfig;
+        
+        if (this.isMobile && this.hasMobileFrames) {
+          this.activeConfig = this.mobileConfig;
+        } else {
+          this.activeConfig = this.desktopConfig;
+        }
+
+        if (prevConfig && prevConfig.name !== this.activeConfig.name) {
+          this.initFrameCache();
+          this.preloadInitialBurst();
+        }
       }
 
       getFrameUrl(index) {
