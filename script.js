@@ -178,7 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ======================================================================
-  // High-Performance Scroll-Driven Frame Animation Engine
+  // High-Performance Scroll-Driven Frame Animation Engine (Ultra-Smooth)
   // ======================================================================
   const heroTrack = document.getElementById('hero-scroll-track');
   const heroCanvas = document.getElementById('hero-scroll-canvas');
@@ -224,13 +224,18 @@ document.addEventListener('DOMContentLoaded', () => {
         this.activeConfig = this.desktopConfig;
 
         this.frames = [];
+        this.loadedCount = 0;
         this.actuallyRenderedIndex = -1;
         this.targetProgress = 0;
         this.smoothProgress = 0;
         this.needsCanvasResizeRedraw = false;
 
+        // Cached track metrics to eliminate layout thrashing during scroll
+        this.trackTop = 0;
+        this.maxScroll = 1;
+
         // Maximum concurrency for rapid streaming
-        this.maxConcurrency = 20;
+        this.maxConcurrency = 24;
         this.activeRequests = 0;
 
         this.init();
@@ -245,6 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       async init() {
         this.setupCanvasDimensions();
+        this.cacheTrackMetrics();
         this.selectActiveConfiguration();
         this.initFrameCache();
         this.bindEvents();
@@ -255,7 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
           this.updateScroll();
         });
 
-        // 2. Aggressively preload initial buffer and background streaming
+        // 2. Preload initial burst for immediate scrubbing response
         this.preloadInitialBurst();
 
         // 3. Start high-precision smooth render loop (60fps / 120fps / 144Hz)
@@ -263,6 +269,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 4. Verify candidate mobile folder in background
         this.detectMobileAvailability();
+      }
+
+      cacheTrackMetrics() {
+        if (!this.track) return;
+        const rect = this.track.getBoundingClientRect();
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop || 0;
+        this.trackTop = rect.top + scrollTop;
+        this.maxScroll = Math.max(1, this.track.offsetHeight - window.innerHeight);
       }
 
       detectMobileAvailability() {
@@ -327,6 +341,7 @@ document.addEventListener('DOMContentLoaded', () => {
             loading: false
           };
         }
+        this.loadedCount = 0;
         this.activeRequests = 0;
         this.actuallyRenderedIndex = -1;
       }
@@ -362,6 +377,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       getNextFrameToLoad() {
         const total = this.activeConfig.totalFrames;
+        if (this.loadedCount >= total) return -1;
+
         const currentTarget = Math.min(
           total - 1,
           Math.max(0, Math.round(this.smoothProgress * (total - 1)))
@@ -372,8 +389,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (this.canLoad(currentTarget)) return currentTarget;
 
         // 2. High-priority forward & backward buffer
-        const aheadCount = 50;
-        const behindCount = 20;
+        const aheadCount = 45;
+        const behindCount = 15;
 
         if (direction >= 0) {
           for (let i = 1; i <= aheadCount; i++) {
@@ -416,8 +433,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       preloadInitialBurst() {
-        // Load first 30 frames immediately for instantaneous scrub ready
-        const burstCount = Math.min(30, this.activeConfig.totalFrames);
+        // Load first 35 frames immediately for instant scrub readiness
+        const burstCount = Math.min(35, this.activeConfig.totalFrames);
         for (let i = 0; i < burstCount; i++) {
           if (this.canLoad(i)) {
             this.loadFrame(i);
@@ -449,11 +466,11 @@ document.addEventListener('DOMContentLoaded', () => {
             preloadIndex++;
           }
           if (preloadIndex < total) {
-            setTimeout(preloadNextBatch, 35);
+            setTimeout(preloadNextBatch, 30);
           }
         };
 
-        setTimeout(preloadNextBatch, 100);
+        setTimeout(preloadNextBatch, 80);
       }
 
       loadFrame(index, callback = null) {
@@ -483,8 +500,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const img = new Image();
         img.decoding = 'async';
 
+        let timeoutId = null;
+
         const onDecoded = () => {
-          item.loaded = true;
+          if (timeoutId) clearTimeout(timeoutId);
+          if (!item.loaded) {
+            item.loaded = true;
+            this.loadedCount++;
+          }
           item.loading = false;
           item.img = img;
           this.activeRequests = Math.max(0, this.activeRequests - 1);
@@ -492,7 +515,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           if (callback) callback(img);
 
-          // If this frame is closer to active scrub position, redraw instantly
+          // If this newly loaded frame is closer to the scrub position, update display
           const currentTarget = Math.min(
             this.activeConfig.totalFrames - 1,
             Math.max(0, Math.round(this.smoothProgress * (this.activeConfig.totalFrames - 1)))
@@ -507,6 +530,15 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         };
 
+        // Safety timeout in case network drops or stalls
+        timeoutId = setTimeout(() => {
+          if (item.loading && !item.loaded) {
+            item.loading = false;
+            this.activeRequests = Math.max(0, this.activeRequests - 1);
+            this.pumpQueue();
+          }
+        }, 3500);
+
         img.onload = () => {
           if ('decode' in img) {
             img.decode().then(onDecoded).catch(onDecoded);
@@ -516,6 +548,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         img.onerror = () => {
+          if (timeoutId) clearTimeout(timeoutId);
           item.loading = false;
           item.loaded = false;
           this.activeRequests = Math.max(0, this.activeRequests - 1);
@@ -532,24 +565,22 @@ document.addEventListener('DOMContentLoaded', () => {
         let frameToDraw = this.frames[targetIndex];
         let frameIndexToDraw = targetIndex;
 
-        // If target frame is not yet fully loaded, find the closest loaded frame to keep animation flowing smoothly
+        // If target frame is not yet fully loaded, find the closest loaded frame outward in O(k)
         if (!frameToDraw || !frameToDraw.loaded || !frameToDraw.img) {
-          let nearestIndex = -1;
-          let minDistance = Infinity;
-
-          for (let i = 0; i < this.activeConfig.totalFrames; i++) {
-            if (this.frames[i] && this.frames[i].loaded && this.frames[i].img) {
-              const dist = Math.abs(i - targetIndex);
-              if (dist < minDistance) {
-                minDistance = dist;
-                nearestIndex = i;
-              }
+          const total = this.activeConfig.totalFrames;
+          for (let offset = 1; offset < total; offset++) {
+            const prev = targetIndex - offset;
+            if (prev >= 0 && this.frames[prev] && this.frames[prev].loaded && this.frames[prev].img) {
+              frameToDraw = this.frames[prev];
+              frameIndexToDraw = prev;
+              break;
             }
-          }
-
-          if (nearestIndex !== -1) {
-            frameToDraw = this.frames[nearestIndex];
-            frameIndexToDraw = nearestIndex;
+            const next = targetIndex + offset;
+            if (next < total && this.frames[next] && this.frames[next].loaded && this.frames[next].img) {
+              frameToDraw = this.frames[next];
+              frameIndexToDraw = next;
+              break;
+            }
           }
         }
 
@@ -569,7 +600,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const iw = img.naturalWidth || this.activeConfig.defaultWidth;
         const ih = img.naturalHeight || this.activeConfig.defaultHeight;
 
-        // High-precision proportional cover-fit centered without distortion
+        // Proportional cover-fit centered without any aspect ratio distortion
         const scale = Math.max(cw / iw, ch / ih);
         const dw = Math.ceil(iw * scale);
         const dh = Math.ceil(ih * scale);
@@ -592,8 +623,9 @@ document.addEventListener('DOMContentLoaded', () => {
           const curW = Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0);
           const curH = Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0);
 
-          if (Math.abs(curW - this.lastMeasuredW) > 1 || Math.abs(curH - this.lastMeasuredH) > 1) {
+          if (Math.abs(curW - this.lastMeasuredW) > 2 || Math.abs(curH - this.lastMeasuredH) > 2) {
             this.setupCanvasDimensions();
+            this.cacheTrackMetrics();
             this.needsCanvasResizeRedraw = true;
           }
 
@@ -601,9 +633,9 @@ document.addEventListener('DOMContentLoaded', () => {
           const absDiff = Math.abs(diff);
 
           if (absDiff > 0.00002) {
-            // Silky frame-rate independent fluid interpolation
-            const baseFactor = 0.26;
-            const velocityBoost = Math.min(0.28, absDiff * 0.85);
+            // Silky frame-rate independent fluid interpolation (no overshoot, zero micro-stutter)
+            const baseFactor = 0.28;
+            const velocityBoost = Math.min(0.36, absDiff * 1.1);
             const lerpRate = Math.min(1.0, (baseFactor + velocityBoost) * dt);
 
             this.smoothProgress += diff * lerpRate;
@@ -629,16 +661,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       updateScroll() {
-        const rect = this.track.getBoundingClientRect();
-        const maxScroll = this.track.offsetHeight - window.innerHeight;
-        const scrollY = -rect.top;
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop || 0;
+        const scrollY = scrollTop - this.trackTop;
 
-        if (maxScroll > 0) {
-          const rawProgress = scrollY / maxScroll;
+        if (this.maxScroll > 0) {
+          const rawProgress = scrollY / this.maxScroll;
           this.targetProgress = Math.max(0, Math.min(1, rawProgress));
-
-          // Immediately pump queue on scroll input to start downloading forward buffer
-          this.pumpQueue();
 
           // Coordinate Scroll Cue visibility
           if (this.scrollCue) {
@@ -662,7 +690,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
       handleResize() {
         this.setupCanvasDimensions();
+        this.cacheTrackMetrics();
         this.selectActiveConfiguration();
+        this.updateScroll();
         this.needsCanvasResizeRedraw = true;
         const currentTarget = Math.min(
           this.activeConfig.totalFrames - 1,
@@ -677,6 +707,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('touchmove', onScroll, { passive: true });
 
         const onTouchStart = () => {
+          this.cacheTrackMetrics();
           this.pumpQueue();
         };
         window.addEventListener('touchstart', onTouchStart, { passive: true });
@@ -685,11 +716,11 @@ document.addEventListener('DOMContentLoaded', () => {
         let resizeTimeout;
         window.addEventListener('resize', () => {
           clearTimeout(resizeTimeout);
-          resizeTimeout = setTimeout(() => this.handleResize(), 120);
+          resizeTimeout = setTimeout(() => this.handleResize(), 100);
         }, { passive: true });
 
         window.addEventListener('orientationchange', () => {
-          setTimeout(() => this.handleResize(), 180);
+          setTimeout(() => this.handleResize(), 150);
         }, { passive: true });
       }
     }
