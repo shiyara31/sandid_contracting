@@ -3820,6 +3820,10 @@ body.home-page-body {
     display: block;
   }
 
+  .hero-scroll-track {
+    height: 260vh;
+  }
+
   /* Service Blocks List */
   .services-list-section {
     padding: 2.5rem 0;
@@ -4144,7 +4148,7 @@ body.home-page-body {
 .hero-scroll-track {
   position: relative;
   width: 100%;
-  height: 380vh;
+  height: 320vh;
   background-color: #0b0b0b;
 }
 
@@ -4161,6 +4165,7 @@ body.home-page-body {
   justify-content: center;
   background-color: #0b0b0b;
   z-index: 2;
+  contain: paint layout;
 }
 
 .hero-scroll-canvas {
@@ -4171,6 +4176,12 @@ body.home-page-body {
   height: 100%;
   display: block;
   z-index: 1;
+  image-rendering: auto;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  will-change: transform;
 }
 
 .scroll-cue {

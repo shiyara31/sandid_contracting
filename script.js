@@ -190,7 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
       constructor(options) {
         this.track = options.track;
         this.canvas = options.canvas;
-        this.ctx = this.canvas.getContext('2d', { alpha: false });
+        this.ctx = this.canvas.getContext('2d', { alpha: false, desynchronized: true });
         this.scrollCue = options.scrollCue;
         this.endScrollOverlay = options.endScrollOverlay;
 
@@ -221,7 +221,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         this.hasMobileFrames = true;
         this.isMobile = this.checkIsMobile();
-        this.activeConfig = this.desktopConfig; // Default to desktop as requested
+        this.activeConfig = this.desktopConfig;
 
         this.frames = [];
         this.actuallyRenderedIndex = -1;
@@ -229,8 +229,8 @@ document.addEventListener('DOMContentLoaded', () => {
         this.smoothProgress = 0;
         this.needsCanvasResizeRedraw = false;
 
-        // High concurrency for instant multi-frame streaming
-        this.maxConcurrency = 12;
+        // Maximum concurrency for rapid streaming
+        this.maxConcurrency = 20;
         this.activeRequests = 0;
 
         this.init();
@@ -249,17 +249,16 @@ document.addEventListener('DOMContentLoaded', () => {
         this.initFrameCache();
         this.bindEvents();
         
-        // 1. Load and paint first frame immediately
+        // 1. Load and paint first frame immediately in crystal-clear quality
         this.loadFrame(0, () => {
           this.drawFrame(0);
           this.updateScroll();
         });
 
-        // 2. Start preloading immediately
-        this.pumpQueue();
-        this.startBackgroundPreload();
+        // 2. Aggressively preload initial buffer and background streaming
+        this.preloadInitialBurst();
 
-        // 3. Start 60fps smooth animation interpolation loop
+        // 3. Start high-precision smooth render loop (60fps / 120fps / 144Hz)
         this.startSmoothRenderLoop();
 
         // 4. Verify candidate mobile folder in background
@@ -297,7 +296,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       selectActiveConfiguration() {
         this.isMobile = this.checkIsMobile();
-        // Uses desktopConfig by default for crisp desktop view frames
         this.activeConfig = this.desktopConfig;
       }
 
@@ -320,7 +318,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       setupCanvasDimensions() {
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
         const width = Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0);
         const height = Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0);
 
@@ -360,8 +358,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (this.canLoad(currentTarget)) return currentTarget;
 
         // 2. High-priority forward & backward buffer
-        const aheadCount = 35;
-        const behindCount = 15;
+        const aheadCount = 50;
+        const behindCount = 20;
 
         if (direction >= 0) {
           for (let i = 1; i <= aheadCount; i++) {
@@ -383,8 +381,8 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }
 
-        // 3. Keyframe mesh scaffold (every 4th frame)
-        const meshStep = 4;
+        // 3. Keyframe mesh scaffold (every 3rd frame)
+        const meshStep = 3;
         for (let dist = meshStep; dist < total; dist += meshStep) {
           const ahead = currentTarget + dist;
           if (ahead < total && this.canLoad(ahead)) return ahead;
@@ -401,6 +399,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         return -1;
+      }
+
+      preloadInitialBurst() {
+        // Load first 30 frames immediately for instantaneous scrub ready
+        const burstCount = Math.min(30, this.activeConfig.totalFrames);
+        for (let i = 0; i < burstCount; i++) {
+          if (this.canLoad(i)) {
+            this.loadFrame(i);
+          }
+        }
+
+        // Continue background stream
+        this.startBackgroundPreload();
       }
 
       pumpQueue() {
@@ -424,11 +435,11 @@ document.addEventListener('DOMContentLoaded', () => {
             preloadIndex++;
           }
           if (preloadIndex < total) {
-            setTimeout(preloadNextBatch, 50);
+            setTimeout(preloadNextBatch, 35);
           }
         };
 
-        setTimeout(preloadNextBatch, 200);
+        setTimeout(preloadNextBatch, 100);
       }
 
       loadFrame(index, callback = null) {
@@ -458,7 +469,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const img = new Image();
         img.decoding = 'async';
 
-        img.onload = () => {
+        const onDecoded = () => {
           item.loaded = true;
           item.loading = false;
           item.img = img;
@@ -467,7 +478,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           if (callback) callback(img);
 
-          // If this frame is closer to active scrub position, redraw
+          // If this frame is closer to active scrub position, redraw instantly
           const currentTarget = Math.min(
             this.activeConfig.totalFrames - 1,
             Math.max(0, Math.round(this.smoothProgress * (this.activeConfig.totalFrames - 1)))
@@ -479,6 +490,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (newDist < currentDist) {
               this.drawFrame(currentTarget);
             }
+          }
+        };
+
+        img.onload = () => {
+          if ('decode' in img) {
+            img.decode().then(onDecoded).catch(onDecoded);
+          } else {
+            onDecoded();
           }
         };
 
@@ -536,19 +555,25 @@ document.addEventListener('DOMContentLoaded', () => {
         const iw = img.naturalWidth || this.activeConfig.defaultWidth;
         const ih = img.naturalHeight || this.activeConfig.defaultHeight;
 
-        // Proportional cover-fit centered without distortion
+        // High-precision proportional cover-fit centered without distortion
         const scale = Math.max(cw / iw, ch / ih);
         const dw = Math.ceil(iw * scale);
         const dh = Math.ceil(ih * scale);
-        const dx = Math.floor((cw - dw) * 0.5);
-        const dy = Math.floor((ch - dh) * 0.5);
+        const dx = Math.round((cw - dw) * 0.5);
+        const dy = Math.round((ch - dh) * 0.5);
 
         this.ctx.drawImage(img, dx, dy, dw, dh);
         this.actuallyRenderedIndex = frameIndexToDraw;
       }
 
       startSmoothRenderLoop() {
-        const tick = () => {
+        let lastTime = performance.now();
+
+        const tick = (now) => {
+          const elapsed = now - lastTime;
+          lastTime = now;
+          const dt = Math.min(3.0, Math.max(0.1, elapsed / 16.67));
+
           // Check if viewport dimensions shifted
           const curW = Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0);
           const curH = Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0);
@@ -561,13 +586,13 @@ document.addEventListener('DOMContentLoaded', () => {
           const diff = this.targetProgress - this.smoothProgress;
           const absDiff = Math.abs(diff);
 
-          if (absDiff > 0.00005) {
-            // Adaptive velocity-damped easing: ultra responsive and silky smooth
-            const baseRate = 0.32;
-            const velocityBoost = Math.min(0.28, absDiff * 0.75);
-            const lerpFactor = baseRate + velocityBoost;
+          if (absDiff > 0.00002) {
+            // Silky frame-rate independent fluid interpolation
+            const baseFactor = 0.26;
+            const velocityBoost = Math.min(0.28, absDiff * 0.85);
+            const lerpRate = Math.min(1.0, (baseFactor + velocityBoost) * dt);
 
-            this.smoothProgress += diff * lerpFactor;
+            this.smoothProgress += diff * lerpRate;
           } else {
             this.smoothProgress = this.targetProgress;
           }
@@ -612,7 +637,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           // Coordinate End Overlay luxury reveal
           if (this.endScrollOverlay) {
-            if (this.targetProgress >= 0.72) {
+            if (this.targetProgress >= 0.76) {
               this.endScrollOverlay.classList.add('is-visible');
             } else {
               this.endScrollOverlay.classList.remove('is-visible');
@@ -646,11 +671,11 @@ document.addEventListener('DOMContentLoaded', () => {
         let resizeTimeout;
         window.addEventListener('resize', () => {
           clearTimeout(resizeTimeout);
-          resizeTimeout = setTimeout(() => this.handleResize(), 150);
+          resizeTimeout = setTimeout(() => this.handleResize(), 120);
         }, { passive: true });
 
         window.addEventListener('orientationchange', () => {
-          setTimeout(() => this.handleResize(), 200);
+          setTimeout(() => this.handleResize(), 180);
         }, { passive: true });
       }
     }
