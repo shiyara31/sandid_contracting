@@ -18,12 +18,15 @@ document.addEventListener('DOMContentLoaded', () => {
       let speed = 0.75; // Smooth px per frame
       let isPaused = false;
       let resumeTimeout = null;
+      let singleSetWidth = container.scrollWidth / 3;
+
+      window.addEventListener('resize', () => {
+        singleSetWidth = container.scrollWidth / 3;
+      }, { passive: true });
 
       function stepScroll() {
-        if (!isPaused) {
+        if (!isPaused && singleSetWidth > 0) {
           container.scrollLeft += speed;
-          // One third of total scroll width is the exact width of one full set of items
-          const singleSetWidth = container.scrollWidth / 3;
           if (container.scrollLeft >= singleSetWidth * 2) {
             container.scrollLeft -= singleSetWidth;
           } else if (container.scrollLeft <= 0) {
@@ -218,18 +221,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         this.hasMobileFrames = true;
         this.isMobile = this.checkIsMobile();
-        this.activeConfig = this.isMobile ? this.mobileConfig : this.desktopConfig;
+        this.activeConfig = this.desktopConfig; // Default to desktop as requested
 
         this.frames = [];
-        this.lastRenderedIndex = -1;
+        this.actuallyRenderedIndex = -1;
         this.targetProgress = 0;
         this.smoothProgress = 0;
+        this.needsCanvasResizeRedraw = false;
 
-        // High-speed parallel preloader queue & concurrency manager
-        this.maxConcurrency = this.isMobile ? 6 : 8;
+        // High concurrency for instant multi-frame streaming
+        this.maxConcurrency = 12;
         this.activeRequests = 0;
-        this.preloadQueue = [];
-        this.queuedSet = new Set();
 
         this.init();
       }
@@ -247,14 +249,15 @@ document.addEventListener('DOMContentLoaded', () => {
         this.initFrameCache();
         this.bindEvents();
         
-        // 1. Paint first frame immediately
-        this.loadFrame(0, true, () => {
+        // 1. Load and paint first frame immediately
+        this.loadFrame(0, () => {
           this.drawFrame(0);
           this.updateScroll();
         });
 
-        // 2. Launch instant keyframe scaffold burst and background streaming
-        this.launchSmartPreloadScaffold();
+        // 2. Start preloading immediately
+        this.pumpQueue();
+        this.startBackgroundPreload();
 
         // 3. Start 60fps smooth animation interpolation loop
         this.startSmoothRenderLoop();
@@ -263,7 +266,6 @@ document.addEventListener('DOMContentLoaded', () => {
         this.detectMobileAvailability();
       }
 
-      // Check candidate folders for mobile frames
       detectMobileAvailability() {
         const tryFolder = (folder) => {
           return new Promise((resolve) => {
@@ -295,11 +297,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       selectActiveConfiguration() {
         this.isMobile = this.checkIsMobile();
-        if (this.isMobile && this.hasMobileFrames) {
-          this.activeConfig = this.mobileConfig;
-        } else {
-          this.activeConfig = this.desktopConfig;
-        }
+        // Uses desktopConfig by default for crisp desktop view frames
+        this.activeConfig = this.desktopConfig;
       }
 
       getFrameUrl(index) {
@@ -316,10 +315,8 @@ document.addEventListener('DOMContentLoaded', () => {
             loading: false
           };
         }
-        this.preloadQueue = [];
-        this.queuedSet = new Set();
         this.activeRequests = 0;
-        this.lastRenderedIndex = -1;
+        this.actuallyRenderedIndex = -1;
       }
 
       setupCanvasDimensions() {
@@ -345,41 +342,96 @@ document.addEventListener('DOMContentLoaded', () => {
         return false;
       }
 
-      // Priority queue manager for network image requests
-      enqueueFrame(index, highPriority = false) {
-        if (index < 0 || index >= this.activeConfig.totalFrames) return;
+      canLoad(index) {
+        if (index < 0 || index >= this.activeConfig.totalFrames) return false;
         const item = this.frames[index];
-        if (!item || item.loaded || item.loading) return;
+        return !!(item && !item.loaded && !item.loading);
+      }
 
-        if (highPriority) {
-          // Remove if already in queue to place at front
-          const existingPos = this.preloadQueue.indexOf(index);
-          if (existingPos !== -1) {
-            this.preloadQueue.splice(existingPos, 1);
+      getNextFrameToLoad() {
+        const total = this.activeConfig.totalFrames;
+        const currentTarget = Math.min(
+          total - 1,
+          Math.max(0, Math.round(this.smoothProgress * (total - 1)))
+        );
+        const direction = this.targetProgress >= this.smoothProgress ? 1 : -1;
+
+        // 1. Current target frame
+        if (this.canLoad(currentTarget)) return currentTarget;
+
+        // 2. High-priority forward & backward buffer
+        const aheadCount = 35;
+        const behindCount = 15;
+
+        if (direction >= 0) {
+          for (let i = 1; i <= aheadCount; i++) {
+            const idx = currentTarget + i;
+            if (idx < total && this.canLoad(idx)) return idx;
           }
-          this.preloadQueue.unshift(index);
-          this.queuedSet.add(index);
+          for (let i = 1; i <= behindCount; i++) {
+            const idx = currentTarget - i;
+            if (idx >= 0 && this.canLoad(idx)) return idx;
+          }
         } else {
-          if (!this.queuedSet.has(index)) {
-            this.preloadQueue.push(index);
-            this.queuedSet.add(index);
+          for (let i = 1; i <= aheadCount; i++) {
+            const idx = currentTarget - i;
+            if (idx >= 0 && this.canLoad(idx)) return idx;
+          }
+          for (let i = 1; i <= behindCount; i++) {
+            const idx = currentTarget + i;
+            if (idx < total && this.canLoad(idx)) return idx;
           }
         }
 
-        this.pumpQueue();
+        // 3. Keyframe mesh scaffold (every 4th frame)
+        const meshStep = 4;
+        for (let dist = meshStep; dist < total; dist += meshStep) {
+          const ahead = currentTarget + dist;
+          if (ahead < total && this.canLoad(ahead)) return ahead;
+          const behind = currentTarget - dist;
+          if (behind >= 0 && this.canLoad(behind)) return behind;
+        }
+
+        // 4. Infill all remaining frames
+        for (let dist = 1; dist < total; dist++) {
+          const ahead = currentTarget + dist;
+          if (ahead < total && this.canLoad(ahead)) return ahead;
+          const behind = currentTarget - dist;
+          if (behind >= 0 && this.canLoad(behind)) return behind;
+        }
+
+        return -1;
       }
 
       pumpQueue() {
-        while (this.activeRequests < this.maxConcurrency && this.preloadQueue.length > 0) {
-          const nextIndex = this.preloadQueue.shift();
-          this.queuedSet.delete(nextIndex);
-          if (nextIndex !== undefined) {
-            this.loadFrame(nextIndex);
-          }
+        while (this.activeRequests < this.maxConcurrency) {
+          const nextIndex = this.getNextFrameToLoad();
+          if (nextIndex === -1) break;
+          this.loadFrame(nextIndex);
         }
       }
 
-      loadFrame(index, highPriority = false, callback = null) {
+      startBackgroundPreload() {
+        let preloadIndex = 0;
+        const total = this.activeConfig.totalFrames;
+        
+        const preloadNextBatch = () => {
+          if (preloadIndex >= total) return;
+          while (this.activeRequests < this.maxConcurrency && preloadIndex < total) {
+            if (this.canLoad(preloadIndex)) {
+              this.loadFrame(preloadIndex);
+            }
+            preloadIndex++;
+          }
+          if (preloadIndex < total) {
+            setTimeout(preloadNextBatch, 50);
+          }
+        };
+
+        setTimeout(preloadNextBatch, 200);
+      }
+
+      loadFrame(index, callback = null) {
         if (index < 0 || index >= this.activeConfig.totalFrames) return;
         const item = this.frames[index];
         if (!item) return;
@@ -406,7 +458,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const img = new Image();
         img.decoding = 'async';
 
-        const onFrameSuccess = () => {
+        img.onload = () => {
           item.loaded = true;
           item.loading = false;
           item.img = img;
@@ -415,105 +467,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
           if (callback) callback(img);
 
-          // If this frame corresponds to the currently visible scroll position, render immediately
+          // If this frame is closer to active scrub position, redraw
           const currentTarget = Math.min(
             this.activeConfig.totalFrames - 1,
             Math.max(0, Math.round(this.smoothProgress * (this.activeConfig.totalFrames - 1)))
           );
-          if (index === currentTarget || Math.abs(index - currentTarget) <= 1) {
-            this.drawFrame(currentTarget);
+
+          if (this.actuallyRenderedIndex !== currentTarget) {
+            const currentDist = this.actuallyRenderedIndex >= 0 ? Math.abs(this.actuallyRenderedIndex - currentTarget) : Infinity;
+            const newDist = Math.abs(index - currentTarget);
+            if (newDist < currentDist) {
+              this.drawFrame(currentTarget);
+            }
           }
         };
 
-        const onFrameError = () => {
+        img.onerror = () => {
           item.loading = false;
+          item.loaded = false;
           this.activeRequests = Math.max(0, this.activeRequests - 1);
           this.pumpQueue();
         };
 
-        img.onload = () => {
-          if ('decode' in img) {
-            img.decode().then(onFrameSuccess).catch(onFrameSuccess);
-          } else {
-            onFrameSuccess();
-          }
-        };
-
-        img.onerror = onFrameError;
         img.src = this.getFrameUrl(index);
         item.img = img;
       }
 
-      // Launch multi-tier distributed keyframe preloader
-      launchSmartPreloadScaffold() {
-        const total = this.activeConfig.totalFrames;
+      drawFrame(targetIndex) {
+        if (!this.ctx || targetIndex < 0 || targetIndex >= this.activeConfig.totalFrames) return;
 
-        // Step 1: Immediate buffer of first 12 frames
-        for (let i = 0; i < Math.min(12, total); i++) {
-          this.enqueueFrame(i, true);
-        }
+        let frameToDraw = this.frames[targetIndex];
+        let frameIndexToDraw = targetIndex;
 
-        // Step 2: Milestone Keyframe Scaffold (every 5th frame on mobile, every 7th on desktop)
-        // This guarantees that ANY position the user scrubs or scrolls to will have a loaded frame within 2-3 frames!
-        const step = this.isMobile ? 5 : 7;
-        for (let i = step; i < total; i += step) {
-          this.enqueueFrame(i, false);
-        }
-
-        // Step 3: Progressive dense infill across the rest of the sequence
-        for (let i = 0; i < total; i++) {
-          if (!this.frames[i].loaded && !this.frames[i].loading) {
-            this.enqueueFrame(i, false);
-          }
-        }
-      }
-
-      // Preload a sliding dense buffer ahead in the scroll direction
-      preloadBuffer(centerIndex, direction = 1) {
-        const forwardRadius = this.isMobile ? 24 : 30;
-        const backwardRadius = this.isMobile ? 10 : 12;
-        
-        const ahead = direction >= 0 ? forwardRadius : backwardRadius;
-        const behind = direction >= 0 ? backwardRadius : forwardRadius;
-
-        const start = Math.max(0, centerIndex - behind);
-        const end = Math.min(this.activeConfig.totalFrames - 1, centerIndex + ahead);
-
-        // Prioritize frames directly in front of the user's motion
-        if (direction >= 0) {
-          for (let offset = 0; offset <= ahead; offset++) {
-            const idx = centerIndex + offset;
-            if (idx <= end) this.enqueueFrame(idx, true);
-          }
-          for (let offset = 1; offset <= behind; offset++) {
-            const idx = centerIndex - offset;
-            if (idx >= start) this.enqueueFrame(idx, false);
-          }
-        } else {
-          for (let offset = 0; offset <= ahead; offset++) {
-            const idx = centerIndex - offset;
-            if (idx >= start) this.enqueueFrame(idx, true);
-          }
-          for (let offset = 1; offset <= behind; offset++) {
-            const idx = centerIndex + offset;
-            if (idx <= end) this.enqueueFrame(idx, false);
-          }
-        }
-      }
-
-      drawFrame(index) {
-        if (!this.ctx || index < 0 || index >= this.activeConfig.totalFrames) return;
-
-        let frameToDraw = this.frames[index];
-
-        // If target frame is still decoding, instantly pick the closest loaded frame to maintain continuous 60fps
-        if (!frameToDraw || !frameToDraw.loaded) {
+        // If target frame is not yet fully loaded, find the closest loaded frame to keep animation flowing smoothly
+        if (!frameToDraw || !frameToDraw.loaded || !frameToDraw.img) {
           let nearestIndex = -1;
           let minDistance = Infinity;
 
           for (let i = 0; i < this.activeConfig.totalFrames; i++) {
-            if (this.frames[i] && this.frames[i].loaded) {
-              const dist = Math.abs(i - index);
+            if (this.frames[i] && this.frames[i].loaded && this.frames[i].img) {
+              const dist = Math.abs(i - targetIndex);
               if (dist < minDistance) {
                 minDistance = dist;
                 nearestIndex = i;
@@ -523,49 +516,55 @@ document.addEventListener('DOMContentLoaded', () => {
 
           if (nearestIndex !== -1) {
             frameToDraw = this.frames[nearestIndex];
+            frameIndexToDraw = nearestIndex;
           }
         }
 
         if (!frameToDraw || !frameToDraw.loaded || !frameToDraw.img) return;
 
+        // Skip redraw if this exact frame is already drawn and canvas dimensions haven't changed
+        if (this.actuallyRenderedIndex === frameIndexToDraw && !this.needsCanvasResizeRedraw) {
+          return;
+        }
+        this.needsCanvasResizeRedraw = false;
+
         const img = frameToDraw.img;
+        if (!img.complete || img.naturalWidth === 0) return;
+
         const cw = this.canvas.width;
         const ch = this.canvas.height;
         const iw = img.naturalWidth || this.activeConfig.defaultWidth;
         const ih = img.naturalHeight || this.activeConfig.defaultHeight;
 
-        // Proportional cover-fit centered without distortion (fills 100% of canvas)
+        // Proportional cover-fit centered without distortion
         const scale = Math.max(cw / iw, ch / ih);
         const dw = Math.ceil(iw * scale);
         const dh = Math.ceil(ih * scale);
         const dx = Math.floor((cw - dw) * 0.5);
         const dy = Math.floor((ch - dh) * 0.5);
 
-        // Direct draw over canvas prevents any black/blank micro-flicker on mobile GPUs
         this.ctx.drawImage(img, dx, dy, dw, dh);
-        this.lastRenderedIndex = index;
+        this.actuallyRenderedIndex = frameIndexToDraw;
       }
 
       startSmoothRenderLoop() {
-        let lastFrameDrawn = -1;
-
         const tick = () => {
-          // Check if mobile viewport dimensions shifted (address bar show/hide)
+          // Check if viewport dimensions shifted
           const curW = Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0);
           const curH = Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0);
 
           if (Math.abs(curW - this.lastMeasuredW) > 1 || Math.abs(curH - this.lastMeasuredH) > 1) {
             this.setupCanvasDimensions();
-            lastFrameDrawn = -1;
+            this.needsCanvasResizeRedraw = true;
           }
 
           const diff = this.targetProgress - this.smoothProgress;
           const absDiff = Math.abs(diff);
 
           if (absDiff > 0.00005) {
-            // Adaptive velocity-damped easing: ultra silky on drag, responsive on fast flings
-            const baseRate = this.isMobile ? 0.20 : 0.26;
-            const velocityBoost = Math.min(0.22, absDiff * 0.6);
+            // Adaptive velocity-damped easing: ultra responsive and silky smooth
+            const baseRate = 0.32;
+            const velocityBoost = Math.min(0.28, absDiff * 0.75);
             const lerpFactor = baseRate + velocityBoost;
 
             this.smoothProgress += diff * lerpFactor;
@@ -578,13 +577,11 @@ document.addEventListener('DOMContentLoaded', () => {
             Math.max(0, Math.round(this.smoothProgress * (this.activeConfig.totalFrames - 1)))
           );
 
-          if (currentTarget !== lastFrameDrawn) {
-            const scrollDir = diff >= 0 ? 1 : -1;
-            this.enqueueFrame(currentTarget, true);
-            this.preloadBuffer(currentTarget, scrollDir);
-            this.drawFrame(currentTarget);
-            lastFrameDrawn = currentTarget;
-          }
+          // Draw the current target frame or best fallback
+          this.drawFrame(currentTarget);
+
+          // Continuously stream frames
+          this.pumpQueue();
 
           requestAnimationFrame(tick);
         };
@@ -593,12 +590,16 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       updateScroll() {
+        const rect = this.track.getBoundingClientRect();
         const maxScroll = this.track.offsetHeight - window.innerHeight;
-        const scrollY = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
+        const scrollY = -rect.top;
 
         if (maxScroll > 0) {
           const rawProgress = scrollY / maxScroll;
           this.targetProgress = Math.max(0, Math.min(1, rawProgress));
+
+          // Immediately pump queue on scroll input to start downloading forward buffer
+          this.pumpQueue();
 
           // Coordinate Scroll Cue visibility
           if (this.scrollCue) {
@@ -621,21 +622,14 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       handleResize() {
-        const prevWidth = this.canvas.width;
         this.setupCanvasDimensions();
-        const prevConfigName = this.activeConfig.name;
         this.selectActiveConfiguration();
-
-        // If switched between desktop and mobile sequence
-        if (prevConfigName !== this.activeConfig.name) {
-          this.initFrameCache();
-          this.loadFrame(0, true, () => {
-            this.drawFrame(0);
-            this.launchSmartPreloadScaffold();
-          });
-        } else {
-          this.drawFrame(this.lastRenderedIndex >= 0 ? this.lastRenderedIndex : 0);
-        }
+        this.needsCanvasResizeRedraw = true;
+        const currentTarget = Math.min(
+          this.activeConfig.totalFrames - 1,
+          Math.max(0, Math.round(this.smoothProgress * (this.activeConfig.totalFrames - 1)))
+        );
+        this.drawFrame(currentTarget);
       }
 
       bindEvents() {
@@ -643,13 +637,8 @@ document.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('scroll', onScroll, { passive: true });
         window.addEventListener('touchmove', onScroll, { passive: true });
 
-        // Instant touch anticipation: start preloading as soon as finger touches the screen
         const onTouchStart = () => {
-          const currentTarget = Math.min(
-            this.activeConfig.totalFrames - 1,
-            Math.max(0, Math.round(this.smoothProgress * (this.activeConfig.totalFrames - 1)))
-          );
-          this.preloadBuffer(currentTarget, 1);
+          this.pumpQueue();
         };
         window.addEventListener('touchstart', onTouchStart, { passive: true });
         window.addEventListener('pointerdown', onTouchStart, { passive: true });
@@ -663,37 +652,6 @@ document.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('orientationchange', () => {
           setTimeout(() => this.handleResize(), 200);
         }, { passive: true });
-
-        // Bridge touch and wheel on End Overlay to Window Scroll for seamless backward scrubbing
-        if (this.endScrollOverlay) {
-          let lastTouchY = 0;
-
-          this.endScrollOverlay.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) {
-              lastTouchY = e.touches[0].clientY;
-            }
-          }, { passive: true });
-
-          this.endScrollOverlay.addEventListener('touchmove', (e) => {
-            if (e.touches.length === 1) {
-              const currentY = e.touches[0].clientY;
-              const deltaY = currentY - lastTouchY;
-              lastTouchY = currentY;
-
-              if (deltaY > 0 && this.endScrollOverlay.scrollTop <= 1) {
-                window.scrollBy({ top: -deltaY * 1.6, behavior: 'auto' });
-                this.updateScroll();
-              }
-            }
-          }, { passive: true });
-
-          this.endScrollOverlay.addEventListener('wheel', (e) => {
-            if (e.deltaY < 0 && this.endScrollOverlay.scrollTop <= 1) {
-              window.scrollBy({ top: e.deltaY, behavior: 'auto' });
-              this.updateScroll();
-            }
-          }, { passive: true });
-        }
       }
     }
 
@@ -851,6 +809,20 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleMobileMenu(false);
       }
     });
+  }
+
+  // Header Dynamic Glassmorphism on Scroll
+  const siteHeader = document.querySelector('header.site-header');
+  if (siteHeader) {
+    const handleHeaderScroll = () => {
+      if (window.scrollY > 40) {
+        siteHeader.classList.add('scrolled');
+      } else {
+        siteHeader.classList.remove('scrolled');
+      }
+    };
+    window.addEventListener('scroll', handleHeaderScroll, { passive: true });
+    handleHeaderScroll();
   }
 });
 
