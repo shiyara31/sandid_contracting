@@ -282,8 +282,8 @@ document.addEventListener('DOMContentLoaded', () => {
         this.trackTop = 0;
         this.maxScroll = 1;
 
-        // Maximum concurrency for rapid streaming
-        this.maxConcurrency = 24;
+        // Dynamic concurrency: aggressive on desktop broadband for instant clarity, optimized on mobile
+        this.maxConcurrency = this.isMobile ? 18 : 36;
         this.activeRequests = 0;
 
         this.init();
@@ -369,6 +369,8 @@ document.addEventListener('DOMContentLoaded', () => {
           this.activeConfig = this.desktopConfig;
         }
 
+        this.maxConcurrency = this.isMobile ? 18 : 36;
+
         if (prevConfig && prevConfig.name !== this.activeConfig.name) {
           this.initFrameCache();
           this.preloadInitialBurst();
@@ -395,7 +397,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       setupCanvasDimensions() {
-        const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+        // Support full native resolution up to 3.0 DPR on 4K/Retina displays
+        const isDesktop = !this.checkIsMobile();
+        const dpr = isDesktop 
+          ? Math.min(window.devicePixelRatio || 1, 3.0) 
+          : Math.min(window.devicePixelRatio || 1, 2.0);
+
         const width = Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0);
         const height = Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0);
 
@@ -436,9 +443,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // 1. Current target frame
         if (this.canLoad(currentTarget)) return currentTarget;
 
-        // 2. High-priority forward & backward buffer
-        const aheadCount = 45;
-        const behindCount = 15;
+        // 2. High-priority forward & backward buffer (deeper on desktop for pristine playback)
+        const aheadCount = this.isMobile ? 35 : 85;
+        const behindCount = this.isMobile ? 15 : 35;
 
         if (direction >= 0) {
           for (let i = 1; i <= aheadCount; i++) {
@@ -481,9 +488,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       preloadInitialBurst() {
-        // Load first 35 frames immediately for instant scrub readiness
-        const burstCount = Math.min(35, this.activeConfig.totalFrames);
-        for (let i = 0; i < burstCount; i++) {
+        // Load initial burst of frames immediately for instant scrub readiness
+        const burstCount = this.isMobile ? 30 : 65;
+        const count = Math.min(burstCount, this.activeConfig.totalFrames);
+        for (let i = 0; i < count; i++) {
           if (this.canLoad(i)) {
             this.loadFrame(i);
           }
@@ -648,6 +656,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const iw = img.naturalWidth || this.activeConfig.defaultWidth;
         const ih = img.naturalHeight || this.activeConfig.defaultHeight;
 
+        // Always ensure highest quality bicubic interpolation on canvas
+        if (!this.ctx.imageSmoothingEnabled || this.ctx.imageSmoothingQuality !== 'high') {
+          this.ctx.imageSmoothingEnabled = true;
+          this.ctx.imageSmoothingQuality = 'high';
+        }
+
         // Proportional cover-fit centered without any aspect ratio distortion
         const scale = Math.max(cw / iw, ch / ih);
         const dw = Math.ceil(iw * scale);
@@ -681,9 +695,9 @@ document.addEventListener('DOMContentLoaded', () => {
           const absDiff = Math.abs(diff);
 
           if (absDiff > 0.00002) {
-            // Silky frame-rate independent fluid interpolation (no overshoot, zero micro-stutter)
-            const baseFactor = 0.28;
-            const velocityBoost = Math.min(0.36, absDiff * 1.1);
+            // Silky, razor-sharp responsive interpolation for crystal-clear playback on high-refresh desktop
+            const baseFactor = this.isMobile ? 0.28 : 0.38;
+            const velocityBoost = Math.min(0.48, absDiff * (this.isMobile ? 1.1 : 1.45));
             const lerpRate = Math.min(1.0, (baseFactor + velocityBoost) * dt);
 
             this.smoothProgress += diff * lerpRate;
