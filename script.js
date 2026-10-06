@@ -165,11 +165,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Contact Form Submission & Toast Notification
+  // Contact Form Submission & Toast Notification (Formspree Integration)
   const contactForm = document.getElementById('contact-form');
 
   if (contactForm) {
-    contactForm.addEventListener('submit', (e) => {
+    contactForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       
       const name = document.getElementById('fullname').value.trim();
@@ -182,18 +182,43 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // Simulate successful message submission
       const submitBtn = contactForm.querySelector('button[type="submit"]');
       const originalText = submitBtn.innerHTML;
       submitBtn.disabled = true;
       submitBtn.innerHTML = 'SENDING...';
 
-      setTimeout(() => {
+      try {
+        const response = await fetch('https://formspree.io/f/xwlvpvbe', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            name: name,
+            email: email,
+            subject: subject,
+            message: message
+          })
+        });
+
+        if (response.ok) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalText;
+          contactForm.reset();
+          showToast('Thank you! Your message has been sent successfully.', 'success');
+        } else {
+          const data = await response.json();
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalText;
+          const errorMsg = data && data.errors ? data.errors.map(err => err.message).join(', ') : 'Failed to send message. Please try again.';
+          showToast(errorMsg, 'warning');
+        }
+      } catch (err) {
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalText;
-        contactForm.reset();
-        showToast('Thank you! Your message has been sent successfully.', 'success');
-      }, 1000);
+        showToast('Network error. Please try again later.', 'warning');
+      }
     });
   }
 
